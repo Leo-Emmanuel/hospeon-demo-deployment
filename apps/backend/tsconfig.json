@@ -7,8 +7,9 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "module": "CommonJS",
+    "module": "commonjs",
     "target": "ES2020"
   },
-  "include": ["src", "prisma/seed.ts"]
+  "include": ["src", "prisma/seed.ts"],
+  "exclude": ["node_modules", "dist"]
 }
