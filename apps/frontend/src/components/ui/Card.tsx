@@ -1,5 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
+const paddingClass: Record<string, string> = {
+  none: 'p-0',
+  sm: 'p-3',
+  md: 'p-5',
+  lg: 'p-6',
+};
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   padded?: boolean;
@@ -9,13 +15,15 @@ export function Card({
   children,
   className,
   padded = true,
+  padding,
   ...rest
 }: CardProps) {
   return (
     <div
       className={cn(
         'bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-2xl shadow-softer',
-        padded && 'p-5',
+        padded && !padding && 'p-5',
+        padding && (paddingClass[padding] || padding),
         className
       )}
       {...rest}>
@@ -26,7 +34,7 @@ export function Card({
 }
 interface SectionTitleProps {
   title: React.ReactNode;
-  description?: string;
+  description?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
 }

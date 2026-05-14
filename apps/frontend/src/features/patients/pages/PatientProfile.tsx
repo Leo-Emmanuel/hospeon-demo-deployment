@@ -24,19 +24,7 @@ import {
   AutoStatusBadge } from
 '@/components/ui/StatusBadge';
 import { AIInsightPanel } from '@/components/ui/AIInsightPanel';
-type Patient = {
-  id: string;
-  name: string;
-  age: number;
-  gender: string;
-  phone: string;
-  blood: string;
-  balance: number;
-  lastVisit: string;
-  allergies: string[];
-  conditions: string[];
-};
-const patients: Patient[] = [];
+const patients: any[] = [];
 import { cn } from '@/lib/cn';
 const tabs = [
 {
@@ -87,21 +75,7 @@ const tabs = [
 
 export function PatientProfile() {
   const { id } = useParams();
-  const patient =
-  patients.find((p) => p.id === id) ||
-  patients[0] ||
-  {
-    id: 'P-000000',
-    name: 'Unknown patient',
-    age: 0,
-    gender: 'M',
-    phone: '—',
-    blood: '—',
-    balance: 0,
-    lastVisit: '—',
-    allergies: [],
-    conditions: []
-  };
+  const patient = patients.find((p) => p.id === id) || patients[0];
   const [tab, setTab] = useState('overview');
   return (
     <div>
@@ -432,7 +406,7 @@ export function PatientProfile() {
                     Known conditions
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {patient.conditions.map((c) =>
+                    {patient.conditions.map((c: string) =>
                 <StatusBadge key={c} tone="neutral">
                         {c}
                       </StatusBadge>

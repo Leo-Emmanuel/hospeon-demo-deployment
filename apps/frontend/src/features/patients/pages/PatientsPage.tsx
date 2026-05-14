@@ -14,18 +14,7 @@ import { DataTable, Column } from '@/components/ui/DataTable';
 import { FilterBar, FilterChip } from '@/components/ui/FilterBar';
 import { MonoNumber, MoneyText } from '@/components/ui/MonoNumber';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-type Patient = {
-  id: string;
-  name: string;
-  phone: string;
-  age: number;
-  gender: string;
-  lastVisit: string;
-  doctor: string;
-  conditions: string[];
-  balance: number;
-};
-const patients: Patient[] = [];
+const patients: any[] = [];
 import { useNavigate } from 'react-router-dom';
 export function Patients() {
   const [search, setSearch] = useState('');
@@ -42,7 +31,7 @@ export function Patients() {
     if (filter === 'outstanding' && p.balance === 0) return false;
     return true;
   });
-  const cols: Column<Patient>[] = [
+  const cols: Column<(typeof patients)[number]>[] = [
   {
     key: 'id',
     header: 'Patient ID',
@@ -60,7 +49,7 @@ export function Patients() {
           <div className="w-8 h-8 rounded-full bg-subtle dark:bg-subtle-dark flex items-center justify-center text-xs font-medium text-ink-secondary">
             {r.name.
         split(' ').
-        map((n) => n[0]).
+        map((n: string) => n[0]).
         slice(0, 2).
         join('')}
           </div>
@@ -107,7 +96,7 @@ export function Patients() {
           {r.conditions.length === 0 &&
       <span className="text-xs text-ink-tertiary">—</span>
       }
-          {r.conditions.slice(0, 2).map((c) =>
+          {r.conditions.slice(0, 2).map((c: string) =>
       <StatusBadge key={c} tone="neutral" size="sm">
               {c}
             </StatusBadge>

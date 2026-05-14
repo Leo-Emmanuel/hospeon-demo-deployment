@@ -46,10 +46,10 @@ export function Sparkline({
 
 }
 interface BarChartProps {
-  data: {
+  data: ({
     label: string;
     value: number;
-  }[];
+  } | number)[];
   height?: number;
   color?: string;
 }
@@ -58,7 +58,10 @@ export function SimpleBarChart({
   height = 160,
   color = '#3F8E84'
 }: BarChartProps) {
-  const max = Math.max(...data.map((d) => d.value));
+  const normalized = data.map((d, i) =>
+    typeof d === 'number' ? { label: String(i + 1), value: d } : d
+  );
+  const max = Math.max(...normalized.map((d) => d.value));
   return (
     <div className="w-full">
       <div
@@ -67,7 +70,7 @@ export function SimpleBarChart({
           height
         }}>
         
-        {data.map((d, i) =>
+        {normalized.map((d, i) =>
         <div
           key={i}
           className="flex-1 flex flex-col items-center gap-2 group">
@@ -93,10 +96,10 @@ export function SimpleBarChart({
 
 }
 interface LineChartProps {
-  data: {
+  data: ({
     label: string;
     value: number;
-  }[];
+  } | number)[];
   height?: number;
   color?: string;
   showAxis?: boolean;
@@ -107,6 +110,9 @@ export function SimpleLineChart({
   color = '#3F8E84',
   showAxis = true
 }: LineChartProps) {
+  const normalized = data.map((d, i) =>
+    typeof d === 'number' ? { label: String(i + 1), value: d } : d
+  );
   const padding = {
     top: 10,
     right: 10,
@@ -116,11 +122,11 @@ export function SimpleLineChart({
   const width = 600;
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
-  const max = Math.max(...data.map((d) => d.value));
+  const max = Math.max(...normalized.map((d) => d.value));
   const min = 0;
   const range = max - min || 1;
-  const stepX = innerW / (data.length - 1);
-  const points = data.map((d, i) => {
+  const stepX = innerW / (normalized.length - 1);
+  const points = normalized.map((d, i) => {
     const x = padding.left + i * stepX;
     const y = padding.top + innerH - (d.value - min) / range * innerH;
     return {

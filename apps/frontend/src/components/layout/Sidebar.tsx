@@ -56,7 +56,7 @@ const nav: {
   items: [
   {
     label: 'Dashboard',
-    to: '/',
+    to: '/dashboard',
     icon: <LayoutDashboardIcon />
   },
   {
@@ -164,6 +164,11 @@ const nav: {
     label: 'Discharge Summary',
     to: '/discharge',
     icon: <FileCheckIcon />
+  },
+  {
+    label: 'MAR',
+    to: '/mar',
+    icon: <ClipboardListIcon />
   }]
 
 },
@@ -361,7 +366,11 @@ const roleSections: Record<string, string[]> = {
   ADMIN: ['Overview', 'Role views', 'Patients', 'OPD', 'Hospital', 'Diagnostics', 'Pharmacy', 'Billing', 'AI Assistant', 'Reports', 'Settings'],
   DOCTOR: ['Overview', 'Patients', 'OPD', 'Diagnostics', 'AI Assistant', 'Reports'],
   RECEPTIONIST: ['Overview', 'Patients', 'OPD', 'Hospital', 'Billing'],
+  NURSE: ['Overview', 'Patients', 'Hospital', 'Diagnostics'],
+  PHARMACIST: ['Overview', 'Pharmacy', 'Billing', 'Reports'],
   LAB_TECHNICIAN: ['Overview', 'Diagnostics', 'Reports'],
+  ACCOUNTANT: ['Overview', 'Billing', 'Reports'],
+  STAFF: ['Overview', 'Patients']
 };
 
 interface SidebarProps {

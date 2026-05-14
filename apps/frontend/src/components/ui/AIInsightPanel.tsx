@@ -7,14 +7,15 @@ import {
   ShieldAlertIcon } from
 'lucide-react';
 import { cn } from '@/lib/cn';
-type InsightTone = 'info' | 'warning' | 'success' | 'danger';
-type InsightAction = string | {label: string; to?: string;};
 interface Insight {
-  tone?: InsightTone;
-  title?: string;
-  body?: string;
+  tone?: 'info' | 'warning' | 'success' | 'danger';
+  title?: React.ReactNode;
+  body?: React.ReactNode;
   text?: React.ReactNode;
-  action?: InsightAction;
+  action?: string | {
+    label: string;
+    to?: string;
+  };
 }
 interface AIInsightPanelProps {
   title?: string;
@@ -24,13 +25,13 @@ interface AIInsightPanelProps {
   variant?: 'panel' | 'inline';
   needsReview?: boolean;
 }
-const toneIcon: Record<InsightTone, typeof InfoIcon> = {
+const toneIcon = {
   info: InfoIcon,
   warning: AlertTriangleIcon,
   success: CheckCircle2Icon,
   danger: ShieldAlertIcon
 };
-const toneStyle: Record<InsightTone, string> = {
+const toneStyle = {
   info: 'text-info bg-info-soft dark:bg-info-soft-dark',
   warning: 'text-warning bg-warning-soft dark:bg-warning-soft-dark',
   success: 'text-success bg-success-soft dark:bg-success-soft-dark',
@@ -44,7 +45,7 @@ export function AIInsightPanel({
   variant = 'panel',
   needsReview
 }: AIInsightPanelProps) {
-  const resolvedSubtitle = subtitle ?? description;
+  const caption = subtitle || description;
   return (
     <div
       className={cn(
@@ -61,10 +62,8 @@ export function AIInsightPanel({
             <h3 className="text-sm font-semibold text-ink-primary dark:text-ink-primary-dark">
               {title}
             </h3>
-            {resolvedSubtitle &&
-            <p className="text-xs text-ink-secondary mt-0.5">
-                {resolvedSubtitle}
-              </p>
+            {caption &&
+            <p className="text-xs text-ink-secondary mt-0.5">{caption}</p>
             }
           </div>
         </div>
@@ -76,17 +75,9 @@ export function AIInsightPanel({
       </div>
       <div className="space-y-3">
         {insights.map((insight, i) => {
-          const tone = insight.tone ?? 'info';
+          const tone = insight.tone || 'info';
           const Icon = toneIcon[tone];
-          const content = insight.text ?? insight.body;
-          const actionLabel =
-          typeof insight.action === 'string' ?
-          insight.action :
-          insight.action?.label;
-          const actionTo =
-          typeof insight.action === 'string' ?
-          undefined :
-          insight.action?.to;
+          const actionLabel = typeof insight.action === 'string' ? insight.action : insight.action?.label;
           return (
             <div
               key={i}
@@ -106,24 +97,16 @@ export function AIInsightPanel({
                     {insight.title}
                   </p>
                 }
-                {content && (typeof content === 'string' ?
-                <p className="text-xs text-ink-secondary dark:text-ink-secondary-dark mt-0.5 leading-relaxed">
-                    {content}
-                  </p> :
+                {(insight.body || insight.text) &&
                 <div className="text-xs text-ink-secondary dark:text-ink-secondary-dark mt-0.5 leading-relaxed">
-                    {content}
+                    {insight.body || insight.text}
                   </div>
-                )}
-                {actionLabel && (actionTo ?
-                <a
-                  href={actionTo}
-                  className="mt-2 inline-flex text-xs font-medium text-accent hover:underline">
-                    {actionLabel} →
-                  </a> :
+                }
+                {actionLabel &&
                 <button className="mt-2 text-xs font-medium text-accent hover:underline">
                     {actionLabel} →
                   </button>
-                )}
+                }
               </div>
             </div>);
 

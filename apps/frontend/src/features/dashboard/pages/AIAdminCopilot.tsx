@@ -1,4 +1,4 @@
-import React, { type ComponentType } from 'react';
+import React, { ComponentType } from 'react';
 import {
   SparklesIcon,
   TrendingUpIcon,

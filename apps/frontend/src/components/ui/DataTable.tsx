@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/cn';
 export interface Column<T> {
   key: string;
-  header: string;
+  header: React.ReactNode;
   width?: string;
   align?: 'left' | 'right' | 'center';
   render?: (row: T, idx: number) => React.ReactNode;

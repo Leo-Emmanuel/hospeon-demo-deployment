@@ -18,19 +18,9 @@ import {
   AutoStatusBadge } from
 '@/components/ui/StatusBadge';
 import { MetricCard } from '@/components/ui/MetricCard';
-type LabOrder = {
-  id: string;
-  patient: string;
-  pid: string;
-  tests: string[];
-  doctor: string;
-  sample: string;
-  payment: string;
-  report: string;
-};
-const labOrders: LabOrder[] = [];
+const labOrders: any[] = [];
 export function LabOrders() {
-  const cols: Column<LabOrder>[] = [
+  const cols: Column<(typeof labOrders)[number]>[] = [
   {
     key: 'id',
     header: 'Order',
@@ -57,7 +47,7 @@ export function LabOrders() {
     header: 'Tests',
     render: (r) =>
     <div className="flex flex-wrap gap-1">
-          {r.tests.slice(0, 2).map((t) =>
+          {r.tests.slice(0, 2).map((t: string) =>
       <StatusBadge key={t} tone="neutral" size="sm">
               {t}
             </StatusBadge>
