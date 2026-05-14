@@ -4,7 +4,8 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
+    "ignoreDeprecations": "6.0",
     "isolatedModules": true
   }
 }
