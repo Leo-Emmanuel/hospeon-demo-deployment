@@ -184,9 +184,9 @@ Vercel should auto-detect these settings, but verify:
 |---------|-------|
 | **Framework** | `Vite` |
 | **Root Directory** | `./apps/frontend` |
-| **Build Command** | `npm run build` |
+| **Build Command** | `pnpm run build` |
 | **Output Directory** | `dist` |
-| **Install Command** | `npm install` |
+| **Install Command** | `pnpm install --frozen-lockfile` |
 
 ## Step 4: Add Environment Variables
 
