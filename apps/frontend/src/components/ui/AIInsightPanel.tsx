@@ -7,26 +7,30 @@ import {
   ShieldAlertIcon } from
 'lucide-react';
 import { cn } from '@/lib/cn';
+type InsightTone = 'info' | 'warning' | 'success' | 'danger';
+type InsightAction = string | {label: string; to?: string;};
 interface Insight {
-  tone: 'info' | 'warning' | 'success' | 'danger';
-  title: string;
-  body: string;
-  action?: string;
+  tone?: InsightTone;
+  title?: string;
+  body?: string;
+  text?: React.ReactNode;
+  action?: InsightAction;
 }
 interface AIInsightPanelProps {
   title?: string;
   subtitle?: string;
+  description?: string;
   insights: Insight[];
   variant?: 'panel' | 'inline';
   needsReview?: boolean;
 }
-const toneIcon = {
+const toneIcon: Record<InsightTone, typeof InfoIcon> = {
   info: InfoIcon,
   warning: AlertTriangleIcon,
   success: CheckCircle2Icon,
   danger: ShieldAlertIcon
 };
-const toneStyle = {
+const toneStyle: Record<InsightTone, string> = {
   info: 'text-info bg-info-soft dark:bg-info-soft-dark',
   warning: 'text-warning bg-warning-soft dark:bg-warning-soft-dark',
   success: 'text-success bg-success-soft dark:bg-success-soft-dark',
@@ -35,10 +39,12 @@ const toneStyle = {
 export function AIInsightPanel({
   title = 'AI Operational Insights',
   subtitle,
+  description,
   insights,
   variant = 'panel',
   needsReview
 }: AIInsightPanelProps) {
+  const resolvedSubtitle = subtitle ?? description;
   return (
     <div
       className={cn(
@@ -55,8 +61,10 @@ export function AIInsightPanel({
             <h3 className="text-sm font-semibold text-ink-primary dark:text-ink-primary-dark">
               {title}
             </h3>
-            {subtitle &&
-            <p className="text-xs text-ink-secondary mt-0.5">{subtitle}</p>
+            {resolvedSubtitle &&
+            <p className="text-xs text-ink-secondary mt-0.5">
+                {resolvedSubtitle}
+              </p>
             }
           </div>
         </div>
@@ -68,7 +76,17 @@ export function AIInsightPanel({
       </div>
       <div className="space-y-3">
         {insights.map((insight, i) => {
-          const Icon = toneIcon[insight.tone];
+          const tone = insight.tone ?? 'info';
+          const Icon = toneIcon[tone];
+          const content = insight.text ?? insight.body;
+          const actionLabel =
+          typeof insight.action === 'string' ?
+          insight.action :
+          insight.action?.label;
+          const actionTo =
+          typeof insight.action === 'string' ?
+          undefined :
+          insight.action?.to;
           return (
             <div
               key={i}
@@ -77,23 +95,35 @@ export function AIInsightPanel({
               <div
                 className={cn(
                   'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center',
-                  toneStyle[insight.tone]
+                  toneStyle[tone]
                 )}>
                 
                 <Icon className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0 flex-1">
+                {insight.title &&
                 <p className="text-xs font-semibold text-ink-primary dark:text-ink-primary-dark">
-                  {insight.title}
-                </p>
-                <p className="text-xs text-ink-secondary dark:text-ink-secondary-dark mt-0.5 leading-relaxed">
-                  {insight.body}
-                </p>
-                {insight.action &&
-                <button className="mt-2 text-xs font-medium text-accent hover:underline">
-                    {insight.action} →
-                  </button>
+                    {insight.title}
+                  </p>
                 }
+                {content && (typeof content === 'string' ?
+                <p className="text-xs text-ink-secondary dark:text-ink-secondary-dark mt-0.5 leading-relaxed">
+                    {content}
+                  </p> :
+                <div className="text-xs text-ink-secondary dark:text-ink-secondary-dark mt-0.5 leading-relaxed">
+                    {content}
+                  </div>
+                )}
+                {actionLabel && (actionTo ?
+                <a
+                  href={actionTo}
+                  className="mt-2 inline-flex text-xs font-medium text-accent hover:underline">
+                    {actionLabel} →
+                  </a> :
+                <button className="mt-2 text-xs font-medium text-accent hover:underline">
+                    {actionLabel} →
+                  </button>
+                )}
               </div>
             </div>);
 

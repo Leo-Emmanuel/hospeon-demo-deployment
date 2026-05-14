@@ -25,7 +25,7 @@ export function Card({
 
 }
 interface SectionTitleProps {
-  title: string;
+  title: React.ReactNode;
   description?: string;
   action?: React.ReactNode;
   className?: string;

@@ -133,13 +133,7 @@ export function AIPatientSummary() {
           {/* Detailed sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
-              <SectionTitle
-                title={
-                <span className="flex items-center gap-1.5">
-                    <ActivityIcon className="w-3.5 h-3.5 text-ink-secondary" />
-                    Active problems
-                  </span>
-                } />
+              <SectionTitle title="Active problems" />
               
               <ul className="space-y-2.5 text-sm">
                 {[
@@ -181,13 +175,7 @@ export function AIPatientSummary() {
             </Card>
 
             <Card>
-              <SectionTitle
-                title={
-                <span className="flex items-center gap-1.5">
-                    <PillIcon className="w-3.5 h-3.5 text-ink-secondary" />
-                    Current medications
-                  </span>
-                } />
+              <SectionTitle title="Current medications" />
               
               <ul className="space-y-2 text-sm">
                 {[
@@ -222,13 +210,7 @@ export function AIPatientSummary() {
             </Card>
 
             <Card>
-              <SectionTitle
-                title={
-                <span className="flex items-center gap-1.5">
-                    <FlaskConicalIcon className="w-3.5 h-3.5 text-ink-secondary" />
-                    Recent lab abnormalities
-                  </span>
-                } />
+              <SectionTitle title="Recent lab abnormalities" />
               
               <ul className="space-y-2 text-sm">
                 {[

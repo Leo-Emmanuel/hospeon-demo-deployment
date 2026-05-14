@@ -5,7 +5,9 @@ import { MonoNumber } from './MonoNumber';
 import { cn } from '@/lib/cn';
 interface MetricCardProps {
   label: string;
-  value: string | number;
+  value: React.ReactNode;
+  hint?: string;
+  trend?: 'up' | 'down' | 'flat';
   delta?: {
     value: string;
     trend: 'up' | 'down' | 'flat';
@@ -18,11 +20,14 @@ interface MetricCardProps {
 export function MetricCard({
   label,
   value,
+  hint,
+  trend,
   delta,
   sublabel,
   icon,
   tone = 'default'
 }: MetricCardProps) {
+  const isPrimitive = typeof value === 'string' || typeof value === 'number';
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -44,17 +49,29 @@ export function MetricCard({
         }
       </div>
       <div className="flex items-baseline gap-2">
+        {isPrimitive ?
         <MonoNumber
           size="3xl"
           weight="semibold"
           className="text-ink-primary dark:text-ink-primary-dark">
           
           {value}
-        </MonoNumber>
+        </MonoNumber> :
+        <span className="text-ink-primary dark:text-ink-primary-dark">
+          {value}
+        </span>
+        }
         {sublabel &&
         <span className="text-sm text-ink-tertiary">{sublabel}</span>
         }
       </div>
+        {hint &&
+        <div className="mt-2 inline-flex items-center gap-1 text-xs text-ink-secondary">
+            {trend === 'up' && <TrendingUpIcon className="w-3.5 h-3.5" />}
+            {trend === 'down' && <TrendingDownIcon className="w-3.5 h-3.5" />}
+            <span>{hint}</span>
+          </div>
+        }
       {delta &&
       <div
         className={cn(

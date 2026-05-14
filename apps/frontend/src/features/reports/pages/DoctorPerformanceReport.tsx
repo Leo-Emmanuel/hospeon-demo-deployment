@@ -28,6 +28,10 @@ const trendLabels = [
 'W10',
 'W11',
 'W12'];
+const trendData = trend.map((value, i) => ({
+  label: trendLabels[i] ?? `W${i + 1}`,
+  value
+}));
 
 const durationCompare = [12, 14, 11, 13, 15, 12, 14];
 const durationLabels = [
@@ -38,6 +42,10 @@ const durationLabels = [
 'Gupta',
 'Patel',
 'Avg'];
+const durationData = durationCompare.map((value, i) => ({
+  label: durationLabels[i] ?? `D${i + 1}`,
+  value
+}));
 
 const doctors = [
 {
@@ -157,35 +165,28 @@ export function DoctorPerformanceReport() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="Total consultations"
-          value={<MonoNumber>1,262</MonoNumber>}
+          value="1,262"
           hint="+8.4% vs prev. period"
           trend="up"
           icon={<StethoscopeIcon className="w-4 h-4" />} />
         
         <MetricCard
           label="Avg. consult duration"
-          value={<MonoNumber>13m 28s</MonoNumber>}
+          value="13m 28s"
           hint="Across all doctors"
           icon={<ClockIcon className="w-4 h-4" />} />
         
         <MetricCard
           label="Revenue generated"
-          value={
-          <>
-              <span className="font-mono">₹13,67,800</span>
-            </>
-          }
+          value="₹13,67,800"
           hint="+12% vs prev. period"
           trend="up"
           icon={<IndianRupeeIcon className="w-4 h-4" />} />
         
         <MetricCard
           label="Avg. patient rating"
-          value={
-          <>
-              <MonoNumber>4.6</MonoNumber> / 5
-            </>
-          }
+          value="4.6"
+          sublabel="/ 5"
           hint="710 reviews"
           icon={<StarIcon className="w-4 h-4" />} />
         
@@ -197,14 +198,14 @@ export function DoctorPerformanceReport() {
             title="Consultations trend"
             description="Weekly volume" />
           
-          <SimpleLineChart data={trend} height={180} />
+          <SimpleLineChart data={trendData} height={180} />
         </Card>
         <Card>
           <SectionTitle
             title="Avg. duration vs clinic average"
             description="Minutes per consult" />
           
-          <SimpleBarChart data={durationCompare} height={180} />
+          <SimpleBarChart data={durationData} height={180} />
         </Card>
       </div>
 

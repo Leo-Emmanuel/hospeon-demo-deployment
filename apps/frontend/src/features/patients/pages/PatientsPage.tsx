@@ -14,7 +14,18 @@ import { DataTable, Column } from '@/components/ui/DataTable';
 import { FilterBar, FilterChip } from '@/components/ui/FilterBar';
 import { MonoNumber, MoneyText } from '@/components/ui/MonoNumber';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-const patients: any[] = [];
+type Patient = {
+  id: string;
+  name: string;
+  phone: string;
+  age: number;
+  gender: string;
+  lastVisit: string;
+  doctor: string;
+  conditions: string[];
+  balance: number;
+};
+const patients: Patient[] = [];
 import { useNavigate } from 'react-router-dom';
 export function Patients() {
   const [search, setSearch] = useState('');
@@ -31,7 +42,7 @@ export function Patients() {
     if (filter === 'outstanding' && p.balance === 0) return false;
     return true;
   });
-  const cols: Column<(typeof patients)[number]>[] = [
+  const cols: Column<Patient>[] = [
   {
     key: 'id',
     header: 'Patient ID',

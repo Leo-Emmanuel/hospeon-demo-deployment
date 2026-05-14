@@ -18,9 +18,19 @@ import {
   AutoStatusBadge } from
 '@/components/ui/StatusBadge';
 import { MetricCard } from '@/components/ui/MetricCard';
-const labOrders: any[] = [];
+type LabOrder = {
+  id: string;
+  patient: string;
+  pid: string;
+  tests: string[];
+  doctor: string;
+  sample: string;
+  payment: string;
+  report: string;
+};
+const labOrders: LabOrder[] = [];
 export function LabOrders() {
-  const cols: Column<(typeof labOrders)[number]>[] = [
+  const cols: Column<LabOrder>[] = [
   {
     key: 'id',
     header: 'Order',
