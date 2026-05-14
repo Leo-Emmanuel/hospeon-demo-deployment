@@ -30,13 +30,24 @@ const databaseUrlSchema = z
     }
   });
 
+const corsOriginsSchema = z
+  .string()
+  .transform((value) =>
+    value
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  )
+  .pipe(z.array(z.string().url('CORS_ORIGIN must contain valid URLs')))
+  .optional();
+
 const envSchema = z.object({
   PORT: z.string().default('5000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: databaseUrlSchema,
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  CORS_ORIGIN: z.string().url('CORS_ORIGIN must be a valid URL').optional(),
+  CORS_ORIGIN: corsOriginsSchema,
 });
 
 const _env = envSchema.safeParse(process.env);

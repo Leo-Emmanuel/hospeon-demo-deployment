@@ -6,8 +6,13 @@ import apiRoutes from './modules';
 import { env } from './config/env';
 
 const app = express();
+const allowedOrigins = env.CORS_ORIGIN;
 
-app.use(cors({ origin: env.CORS_ORIGIN || '*' }));
+app.use(
+  cors({
+    origin: allowedOrigins?.length ? allowedOrigins : '*',
+  })
+);
 app.use(express.json());
 app.use(httpLogger);
 
