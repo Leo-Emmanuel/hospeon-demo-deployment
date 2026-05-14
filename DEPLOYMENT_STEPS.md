@@ -196,6 +196,7 @@ Vercel should auto-detect these settings, but verify:
 ```
 VITE_API_BASE_URL=https://hospeon-backend-xxxxx.onrender.com/api/v1
 VITE_SOCKET_URL=https://hospeon-backend-xxxxx.onrender.com
+PRISMA_SKIP_POSTINSTALL_GENERATE=1
 ```
 
 Replace `hospeon-backend-xxxxx.onrender.com` with your actual Render backend URL from Step 5.2 above.
