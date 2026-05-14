@@ -84,13 +84,15 @@ Fill in these settings:
 | **Region** | Choose closest to your users (same as Neon if possible) |
 | **Branch** | `main` |
 | **Root Directory** | `apps/backend` |
-| **Build Command** | `pnpm install --frozen-lockfile && pnpm run build` |
-| **Start Command** | `pnpm start` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm start` |
 
 **Note:** Setting Root Directory to `apps/backend` means:
 - Only changes in the backend directory trigger auto-deploys
 - Commands run from `apps/backend` directory by default
 - Build/start commands are simplified
+- `npm install` automatically runs the `postinstall` script which generates Prisma types
+- Prisma client types are generated before TypeScript compilation starts
 
 ## Step 4: Set Environment Variables
 
@@ -105,6 +107,13 @@ JWT_SECRET=<generate_strong_secret>
 JWT_EXPIRES_IN=7d
 CORS_ORIGIN=https://your-frontend-vercel-url.vercel.app
 ```
+
+**Important:** The build process includes:
+1. `npm install` - Installs dependencies and runs `postinstall` script
+2. `postinstall` script - Automatically runs `npx prisma generate` to create Prisma client types
+3. `npm run build` - Runs TypeScript compiler (types already available)
+
+This ensures Prisma types are available for TypeScript compilation.
 
 ### How to generate JWT_SECRET:
 
