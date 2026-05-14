@@ -31,11 +31,11 @@ Before starting, ensure you have:
 ## Step 2: Get Database Connection String
 
 1. After creation, you'll see a connection string
-2. **Copy the "Direct connection string"** (looks like):
+2. **Copy the Neon connection string** from the Connect modal. For the app runtime, use the pooled connection string if available (the host includes `-pooler`):
    ```
-   postgresql://user:password@host.neon.tech/hospeon_main?sslmode=require
+   postgresql://<role>:<password>@<endpoint>-pooler.<region>.aws.neon.tech/hospeon_main?sslmode=require&channel_binding=require
    ```
-3. **Save this somewhere safe** - you'll need it for both Render and local development
+3. **Save this somewhere safe** - you'll need it for both Render and local development. Do not use `host.neon.tech`; that is only a placeholder.
 
 ## Step 3: Verify Connection Locally (Optional)
 
@@ -102,7 +102,7 @@ Fill in these settings:
 ```
 NODE_ENV=production
 PORT=5000
-DATABASE_URL=postgresql://user:password@host.neon.tech/hospeon_main?sslmode=require
+DATABASE_URL=postgresql://<role>:<password>@<endpoint>-pooler.<region>.aws.neon.tech/hospeon_main?sslmode=require&channel_binding=require
 JWT_SECRET=<generate_strong_secret>
 JWT_EXPIRES_IN=7d
 CORS_ORIGIN=https://your-frontend-vercel-url.vercel.app
@@ -140,7 +140,7 @@ After deployment, run migrations:
 
 ```bash
 # In your local terminal
-DATABASE_URL="postgresql://user:password@host.neon.tech/hospeon_main?sslmode=require" npx prisma migrate deploy
+DATABASE_URL="postgresql://<role>:<password>@<endpoint>.<region>.aws.neon.tech/hospeon_main?sslmode=require&channel_binding=require" npx prisma migrate deploy
 ```
 
 Or use Render's Shell tab:
