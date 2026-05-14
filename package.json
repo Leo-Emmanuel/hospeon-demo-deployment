@@ -1,6 +1,7 @@
 {
   "name": "hospeon",
   "private": true,
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm -r build",
