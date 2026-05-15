@@ -33,7 +33,11 @@ export function SampleCollection() {
 
   const markCollected = async () => {
     if (!order) return;
-    await updateStatus.mutateAsync({ id: order.id, status: 'SAMPLE_COLLECTED' });
+    await updateStatus.mutateAsync({
+      id: order.id,
+      status: 'SAMPLE_COLLECTED',
+      notes: notes.trim() ? `${sampleCondition}: ${notes.trim()}` : sampleCondition,
+    });
     navigate(`/lab/orders/${order.id}/results`);
   };
 

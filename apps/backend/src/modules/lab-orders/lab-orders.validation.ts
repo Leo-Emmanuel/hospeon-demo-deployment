@@ -6,6 +6,7 @@ export const labOrdersQuerySchema = paginationQuerySchema.extend({
   patientId: z.string().uuid().optional(),
   priority: z.enum(['ROUTINE', 'URGENT', 'STAT']).optional(),
   date: z.string().optional(),
+  category: z.string().optional(),
 });
 
 export const createLabOrderSchema = z.object({
@@ -19,4 +20,5 @@ export const createLabOrderSchema = z.object({
 
 export const updateLabOrderStatusSchema = z.object({
   status: z.enum(['PENDING', 'SAMPLE_COLLECTED', 'PROCESSING', 'RESULTED', 'APPROVED', 'CANCELLED']),
+  notes: z.string().optional(),
 });

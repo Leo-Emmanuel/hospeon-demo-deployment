@@ -429,7 +429,22 @@ export function PatientProfile() {
               <EmptyState compact title="No consultations" description="Consultation records will appear here after the first doctor note." />
             ) : (
               <div className="space-y-3">
-                {consultations.map((consultation) => (
+                {consultations.map((consultation) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const followUp = consultation.followUpDate ? new Date(consultation.followUpDate) : null;
+                  if (followUp) followUp.setHours(0, 0, 0, 0);
+
+                  let followUpBadge = null;
+                  if (followUp) {
+                    if (followUp >= today) {
+                      followUpBadge = <StatusBadge tone="warning">Follow-up due {formatDate(consultation.followUpDate)}</StatusBadge>;
+                    } else {
+                      followUpBadge = <StatusBadge tone="danger">Follow-up overdue</StatusBadge>;
+                    }
+                  }
+
+                  return (
                   <div key={consultation.id} className="rounded-xl border border-line dark:border-line-dark p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -437,13 +452,16 @@ export function PatientProfile() {
                         <p className="text-xs text-ink-tertiary mt-1">{formatDate(consultation.createdAt)}</p>
                         <p className="text-sm text-ink-secondary mt-2">{consultation.clinicalNotes || 'No clinical notes recorded.'}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <FlaskConicalIcon className="w-4 h-4 text-ink-tertiary" />
-                        <AutoStatusBadge status={consultation.status} />
+                      <div className="flex flex-col items-end gap-2">
+                        {followUpBadge}
+                        <div className="flex items-center gap-2">
+                          <FlaskConicalIcon className="w-4 h-4 text-ink-tertiary" />
+                          <AutoStatusBadge status={consultation.status} />
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </Card>

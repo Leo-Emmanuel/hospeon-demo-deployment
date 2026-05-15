@@ -28,6 +28,9 @@ export class LabOrdersService {
       end.setUTCDate(end.getUTCDate() + 1);
       where.orderedAt = { gte: start, lt: end };
     }
+    if (query.category) {
+      (where as any).testCatalog = { category: query.category };
+    }
     const [items, total] = await Promise.all([
       prisma.labOrder.findMany({ where, skip, take, orderBy: [{ priority: 'desc' }, { orderedAt: 'asc' }], include: { patient: true, testCatalog: true, result: true, orderedByUser: { select: { id: true, name: true } } } }),
       prisma.labOrder.count({ where }),
@@ -63,7 +66,7 @@ export class LabOrdersService {
     return order;
   }
 
-  async updateStatus(id: string, status: string, actorRole?: string, actorId?: string, ipAddress?: string) {
+  async updateStatus(id: string, status: string, actorRole?: string, actorId?: string, ipAddress?: string, notes?: string) {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.labOrder.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, 'Lab order not found');
@@ -73,7 +76,7 @@ export class LabOrdersService {
       if (!transitions[existing.status].includes(status)) {
         throw new AppError(422, `Invalid lab order status transition from ${existing.status} to ${status}`);
       }
-      const order = await tx.labOrder.update({ where: { id }, data: { status: status as any } });
+      const order = await tx.labOrder.update({ where: { id }, data: { status: status as any, ...(notes && { notes }) } });
       await writeAuditLog(tx, { actorId, action: 'STATUS_CHANGE', entityType: 'lab_orders', entityId: id, oldValues: existing, newValues: order, ipAddress });
       return order;
     });

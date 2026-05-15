@@ -7,6 +7,8 @@ export const labKeys = {
   orderList: (params: LabOrderListParams) => [...labKeys.orders(), params] as const,
   orderDetail: (id: string) => [...labKeys.all, 'order', id] as const,
   resultDetail: (orderId: string) => [...labKeys.all, 'result', orderId] as const,
+  catalog: () => [...labKeys.all, 'catalog'] as const,
+  catalogList: (params: { showAll?: boolean }) => [...labKeys.catalog(), params] as const,
 };
 
 export const useLabOrders = (params: LabOrderListParams) =>
@@ -39,10 +41,12 @@ export const useUpdateLabOrderStatus = () => {
     mutationFn: ({
       id,
       status,
+      notes,
     }: {
       id: string;
       status: 'PENDING' | 'SAMPLE_COLLECTED' | 'PROCESSING' | 'RESULTED' | 'APPROVED' | 'CANCELLED';
-    }) => labService.updateOrderStatus(id, status),
+      notes?: string;
+    }) => labService.updateOrderStatus(id, status, notes),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: labKeys.orders() });
       queryClient.setQueryData(labKeys.orderDetail(response.data.id), response);
@@ -84,6 +88,46 @@ export const useApproveLabResult = () => {
     onSuccess: (response, orderId) => {
       queryClient.invalidateQueries({ queryKey: labKeys.orders() });
       queryClient.setQueryData(labKeys.resultDetail(orderId), response);
+    },
+  });
+};
+
+export const useLabCatalog = (params: { showAll?: boolean } = {}) =>
+  useQuery({
+    queryKey: labKeys.catalogList(params),
+    queryFn: () => labService.listCatalog(params),
+  });
+
+export const useCreateCatalogItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof labService.createCatalogItem>[0]) => labService.createCatalogItem(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: labKeys.catalog() });
+    },
+  });
+};
+
+export const useUpdateCatalogItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof labService.updateCatalogItem>[1] }) =>
+      labService.updateCatalogItem(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: labKeys.catalog() });
+    },
+  });
+};
+
+export const useToggleCatalogItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => labService.toggleCatalogItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: labKeys.catalog() });
     },
   });
 };

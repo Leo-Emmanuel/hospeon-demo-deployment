@@ -35,3 +35,14 @@ export const useUpdateVisitStatus = () => {
     },
   });
 };
+
+export const useCreateVisit = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof visitService.create>[0]) => visitService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+    },
+  });
+};

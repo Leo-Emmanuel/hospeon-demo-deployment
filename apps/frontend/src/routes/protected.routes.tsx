@@ -31,6 +31,8 @@ import { FollowUps } from '@/features/consultations/pages/FollowUps';
 import { Prescriptions } from '@/features/consultations/pages/Prescriptions';
 import { Templates } from '@/features/consultations/pages/Templates';
 import { LabOrders, LabReportReview } from '@/features/laboratory/pages/LabPage';
+import { LabCatalog } from '@/features/laboratory/pages/LabCatalog';
+import { LabReportPrint } from '@/features/laboratory/pages/LabReportPrint';
 import { Radiology } from '@/features/laboratory/pages/Radiology';
 import { ResultEntry } from '@/features/laboratory/pages/ResultEntry';
 import { SampleCollection } from '@/features/laboratory/pages/SampleCollection';
@@ -111,8 +113,10 @@ export const protectedRoutes: RouteObject[] = [
           { path: 'discharge', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <DischargeSummary /> }] },
           { path: 'lab/queue', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <LabOrders /> }] },
           { path: 'lab/orders', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <LabOrders /> }] },
+          { path: 'lab/catalog', element: <ProtectedRoute allowedRoles={[Role.ADMIN]} />, children: [{ index: true, element: <LabCatalog /> }] },
           { path: 'lab/orders/:id/results', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.LAB_TECHNICIAN]} />, children: [{ index: true, element: <ResultEntry /> }] },
           { path: 'lab/reports', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <LabReportReview /> }] },
+          { path: 'lab/reports/:id/print', element: <LabReportPrint /> },
           { path: 'lab/collection', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.LAB_TECHNICIAN]} />, children: [{ index: true, element: <SampleCollection /> }] },
           { path: 'lab/result-entry', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.LAB_TECHNICIAN]} />, children: [{ index: true, element: <ResultEntry /> }] },
           { path: 'radiology', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <Radiology /> }] },

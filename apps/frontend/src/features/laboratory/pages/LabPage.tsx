@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircleIcon, ClockIcon, FlaskConicalIcon, TestTubeIcon } from 'lucide-react';
+import { AlertCircleIcon, ClockIcon, FlaskConicalIcon, PrinterIcon, TestTubeIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, SectionTitle } from '@/components/ui/Card';
@@ -15,18 +15,20 @@ import { LabOrderRecord } from '@/services/labService';
 
 const formatStatus = (value: string) => value.replace(/_/g, ' ').toLowerCase();
 
-export function LabOrders() {
+export function LabOrders({ category }: { category?: string }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'PENDING' | 'SAMPLE_COLLECTED' | 'PROCESSING' | 'RESULTED' | 'APPROVED' | undefined>();
   const [priority, setPriority] = useState<'ROUTINE' | 'URGENT' | 'STAT' | undefined>();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(category);
   const ordersQuery = useLabOrders({
     page: 1,
     limit: 50,
     status,
     priority,
     date,
+    category: selectedCategory,
   });
 
   const orders = ordersQuery.data?.data || [];
@@ -127,9 +129,9 @@ export function LabOrders() {
   return (
     <div>
       <PageHeader
-        title="Lab queue"
-        description="Live queue of pending and in-progress diagnostic work."
-        breadcrumbs={[{ label: 'Diagnostics' }, { label: 'Lab queue' }]}
+        title={category === 'Radiology' ? 'Radiology queue' : 'Lab queue'}
+        description={category === 'Radiology' ? 'Live queue of radiology orders and imaging workflows.' : 'Live queue of pending and in-progress diagnostic work.'}
+        breadcrumbs={[{ label: 'Diagnostics' }, { label: category === 'Radiology' ? 'Radiology queue' : 'Lab queue' }]}
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -183,6 +185,19 @@ export function LabOrders() {
             <option value="URGENT">Urgent</option>
             <option value="ROUTINE">Routine</option>
           </select>
+          {!category && (
+            <select
+              value={selectedCategory || ''}
+              onChange={(event) => setSelectedCategory(event.target.value || undefined)}
+              className="h-9 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark px-3 text-sm">
+              <option value="">All categories</option>
+              <option value="Biochemistry">Biochemistry</option>
+              <option value="Hematology">Hematology</option>
+              <option value="Microbiology">Microbiology</option>
+              <option value="Pathology">Pathology</option>
+              <option value="Radiology">Radiology</option>
+            </select>
+          )}
           <input
             type="date"
             value={date}
@@ -377,9 +392,14 @@ export function LabReportReview() {
                   ? 'This result is flagged abnormal. Double-check the value and context before approval.'
                   : 'This result is within the configured reference range.'}
               </div>
-              <Button variant="primary" disabled={approveResult.isPending || Boolean(result.approvedAt)} onClick={handleApprove}>
-                {result.approvedAt ? 'Already approved' : approveResult.isPending ? 'Approving...' : 'Approve result'}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" icon={<PrinterIcon />} disabled={!result.approvedAt} onClick={() => window.open(`/lab/reports/${selectedOrder.id}/print`, '_blank')}>
+                  Print report
+                </Button>
+                <Button variant="primary" disabled={approveResult.isPending || Boolean(result.approvedAt)} onClick={handleApprove}>
+                  {result.approvedAt ? 'Already approved' : approveResult.isPending ? 'Approving...' : 'Approve result'}
+                </Button>
+              </div>
             </div>
             {result.approvedAt ? (
               <p className="text-xs text-ink-tertiary mt-3">

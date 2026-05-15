@@ -6,7 +6,7 @@ import { Card, SectionTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
-import { FilterBar } from '@/components/ui/FilterBar';
+import { FilterBar, FilterChip } from '@/components/ui/FilterBar';
 import { MonoNumber } from '@/components/ui/MonoNumber';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { usePatients } from '@/features/patients/hooks/usePatientQueries';
@@ -48,6 +48,7 @@ export function Patients() {
   const [bloodGroup, setBloodGroup] = useState('');
   const [visitFrom, setVisitFrom] = useState('');
   const [visitTo, setVisitTo] = useState('');
+  const [followUpToday, setFollowUpToday] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,6 +60,8 @@ export function Patients() {
     return () => window.clearTimeout(handle);
   }, [searchInput]);
 
+  const todayIso = new Date().toISOString().split('T')[0];
+
   const queryParams: PatientListParams = {
     page,
     limit: 10,
@@ -67,9 +70,13 @@ export function Patients() {
     bloodGroup: bloodGroup || undefined,
     visitFrom: visitFrom || undefined,
     visitTo: visitTo || undefined,
+    followUpDate: followUpToday ? todayIso : undefined,
     sort: 'createdAt',
     order: 'desc',
   };
+
+  const followUpQuery = usePatients({ followUpDate: todayIso, limit: 1 });
+  const followUpCount = followUpQuery.data?.meta.total || 0;
 
   const patientsQuery = usePatients(queryParams);
   const patients = patientsQuery.data?.data || [];
@@ -180,6 +187,7 @@ export function Patients() {
                 setBloodGroup('');
                 setVisitFrom('');
                 setVisitTo('');
+                setFollowUpToday(false);
                 setSearchInput('');
                 setSearch('');
                 setPage(1);
@@ -187,6 +195,15 @@ export function Patients() {
                 Reset filters
               </Button>
             }>
+            <FilterChip
+              active={followUpToday}
+              onClick={() => {
+                setFollowUpToday(!followUpToday);
+                setPage(1);
+              }}
+              count={followUpCount}>
+              Follow-up today
+            </FilterChip>
             <select
               value={gender || ''}
               onChange={(event) => {

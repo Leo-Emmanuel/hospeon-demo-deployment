@@ -1,6 +1,19 @@
 import { apiClient } from '@/lib/axios';
 import { ApiMeta, ApiResponse, LabOrderSummary } from '@/services/patientService';
 
+export interface LabTestCatalogItem {
+  id: string;
+  name: string;
+  code: string;
+  category?: string | null;
+  specimenType?: string | null;
+  referenceRangeLow?: string | null;
+  referenceRangeHigh?: string | null;
+  unit?: string | null;
+  turnaroundHours?: number | null;
+  isActive: boolean;
+}
+
 export interface LabOrderRecord extends LabOrderSummary {
   patient: {
     id: string;
@@ -14,17 +27,7 @@ export interface LabOrderRecord extends LabOrderSummary {
     id: string;
     name: string;
   };
-  testCatalog: {
-    id: string;
-    name: string;
-    code: string;
-    category?: string | null;
-    specimenType?: string | null;
-    referenceRangeLow?: string | null;
-    referenceRangeHigh?: string | null;
-    unit?: string | null;
-    turnaroundHours?: number | null;
-  };
+  testCatalog: LabTestCatalogItem;
 }
 
 export interface LabResultRecord {
@@ -75,8 +78,9 @@ export const labService = {
   getOrder: async (id: string): Promise<ApiResponse<LabOrderRecord>> => apiClient.get(`/lab-orders/${id}`),
   updateOrderStatus: async (
     id: string,
-    status: 'PENDING' | 'SAMPLE_COLLECTED' | 'PROCESSING' | 'RESULTED' | 'APPROVED' | 'CANCELLED'
-  ): Promise<ApiResponse<LabOrderRecord>> => apiClient.patch(`/lab-orders/${id}/status`, { status }),
+    status: 'PENDING' | 'SAMPLE_COLLECTED' | 'PROCESSING' | 'RESULTED' | 'APPROVED' | 'CANCELLED',
+    notes?: string
+  ): Promise<ApiResponse<LabOrderRecord>> => apiClient.patch(`/lab-orders/${id}/status`, { status, notes }),
   getResult: async (orderId: string): Promise<ApiResponse<LabResultRecord>> => apiClient.get(`/lab-results/${orderId}`),
   enterResult: async (orderId: string, payload: UpsertLabResultPayload): Promise<ApiResponse<LabResultRecord>> =>
     apiClient.post(`/lab-results/${orderId}`, payload),
@@ -84,6 +88,14 @@ export const labService = {
     apiClient.put(`/lab-results/${orderId}`, payload),
   approveResult: async (orderId: string): Promise<ApiResponse<LabResultRecord>> =>
     apiClient.patch(`/lab-results/${orderId}/approve`),
+  listCatalog: async (params: { showAll?: boolean } = {}): Promise<ApiResponse<LabTestCatalogItem[]>> =>
+    apiClient.get('/lab-tests-catalog', { params }),
+  createCatalogItem: async (payload: Partial<LabTestCatalogItem>): Promise<ApiResponse<LabTestCatalogItem>> =>
+    apiClient.post('/lab-tests-catalog', payload),
+  updateCatalogItem: async (id: string, payload: Partial<LabTestCatalogItem>): Promise<ApiResponse<LabTestCatalogItem>> =>
+    apiClient.put(`/lab-tests-catalog/${id}`, payload),
+  toggleCatalogItem: async (id: string): Promise<ApiResponse<LabTestCatalogItem>> =>
+    apiClient.patch(`/lab-tests-catalog/${id}/toggle`),
 };
 
 export type LabOrderListMeta = ApiMeta;

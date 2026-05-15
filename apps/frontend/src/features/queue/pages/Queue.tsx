@@ -9,9 +9,15 @@ import { DataTable, Column } from '@/components/ui/DataTable';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
 import { MonoNumber } from '@/components/ui/MonoNumber';
 import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
-import { useVisits, useUpdateVisitStatus } from '@/features/queue/hooks/useVisitQueries';
-import { VisitRecord, VisitStatus } from '@/services/visitService';
+import { useVisits, useUpdateVisitStatus, useCreateVisit } from '@/features/queue/hooks/useVisitQueries';
+import { VisitRecord, VisitStatus, VisitType } from '@/services/visitService';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useQuery } from '@tanstack/react-query';
+import { departmentService } from '@/services/departmentService';
+import { userService } from '@/services/userService';
+import { usePatients } from '@/features/patients/hooks/usePatientQueries';
+import { PlusIcon, XIcon } from 'lucide-react';
+
 
 const humanizeStatus = (value: string) => value.replace(/_/g, ' ').toLowerCase();
 
@@ -38,6 +44,25 @@ export function Queue() {
     date: new Date().toISOString().slice(0, 10),
   });
   const updateVisitStatus = useUpdateVisitStatus();
+  const createVisit = useCreateVisit();
+
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [checkInForm, setCheckInForm] = useState({
+    patientId: '',
+    visitType: 'OPD' as VisitType,
+    doctorId: '',
+    departmentId: '',
+    chiefComplaint: '',
+  });
+
+  const { data: deptsQuery } = useQuery({ queryKey: ['departments'], queryFn: () => departmentService.list() });
+  const { data: doctorsQuery } = useQuery({ queryKey: ['users', 'doctors'], queryFn: () => userService.listDoctors() });
+  const patientLookup = usePatients({ search: patientSearch, limit: 5 });
+
+  const departments = deptsQuery?.data || [];
+  const doctors = doctorsQuery?.data || [];
+  const patients = patientLookup.data?.data || [];
 
   const queue = visitsQuery.data?.data || [];
   const filtered = useMemo(() => {
@@ -137,11 +162,104 @@ export function Queue() {
         description={user?.role === 'DOCTOR' ? 'Your live OPD queue for today.' : 'Live OPD queue across the clinic for today.'}
         breadcrumbs={[{ label: 'Overview' }, { label: "Today's queue" }]}
         actions={
-          <Button variant="secondary" icon={<RefreshCwIcon />} onClick={() => visitsQuery.refetch()}>
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" icon={<RefreshCwIcon />} onClick={() => visitsQuery.refetch()}>
+              Refresh
+            </Button>
+            <Button variant="primary" icon={<PlusIcon />} onClick={() => setIsCheckingIn(true)}>
+              Check in patient
+            </Button>
+          </div>
         }
       />
+
+      {isCheckingIn && (
+        <Card className="mb-6 border-accent/20 bg-accent-soft/10">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <SectionTitle title="New patient check-in" description="Create a new OPD visit token for a registered patient." />
+            <Button variant="ghost" size="sm" icon={<XIcon />} onClick={() => setIsCheckingIn(false)} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-ink-tertiary uppercase tracking-wider">Patient lookup</label>
+              <Input
+                placeholder="Search by name or UHID..."
+                value={patientSearch}
+                onChange={(e) => setPatientSearch(e.target.value)}
+              />
+              {patients.length > 0 && patientSearch.length > 1 && (
+                <div className="mt-1 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark shadow-lg overflow-hidden">
+                  {patients.map((p) => (
+                    <button
+                      key={p.id}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-subtle/50 transition-colors ${checkInForm.patientId === p.id ? 'bg-accent-soft/30' : ''}`}
+                      onClick={() => {
+                        setCheckInForm({ ...checkInForm, patientId: p.id });
+                        setPatientSearch(`${p.firstName} ${p.lastName} (${p.uhid})`);
+                      }}>
+                      <div className="font-medium">{p.firstName} {p.lastName}</div>
+                      <div className="text-xs text-ink-tertiary">{p.uhid}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Select
+              label="Visit type"
+              value={checkInForm.visitType}
+              onChange={(e) => setCheckInForm({ ...checkInForm, visitType: e.target.value as VisitType })}>
+              <option value="OPD">OPD</option>
+              <option value="EMERGENCY">Emergency</option>
+              <option value="IPD">IPD Admission</option>
+            </Select>
+
+            <Select
+              label="Department"
+              value={checkInForm.departmentId}
+              onChange={(e) => setCheckInForm({ ...checkInForm, departmentId: e.target.value })}>
+              <option value="">Select department</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </Select>
+
+            <Select
+              label="Doctor"
+              value={checkInForm.doctorId}
+              onChange={(e) => setCheckInForm({ ...checkInForm, doctorId: e.target.value })}>
+              <option value="">Select doctor</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </Select>
+
+            <Input
+              label="Chief complaint"
+              className="lg:col-span-2"
+              placeholder="Reason for visit..."
+              value={checkInForm.chiefComplaint}
+              onChange={(e) => setCheckInForm({ ...checkInForm, chiefComplaint: e.target.value })}
+            />
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setIsCheckingIn(false)}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={!checkInForm.patientId || !checkInForm.doctorId || !checkInForm.departmentId || createVisit.isPending}
+              onClick={async () => {
+                await createVisit.mutateAsync(checkInForm);
+                setIsCheckingIn(false);
+                setCheckInForm({ patientId: '', visitType: 'OPD', doctorId: '', departmentId: '', chiefComplaint: '' });
+                setPatientSearch('');
+              }}>
+              {createVisit.isPending ? 'Checking in...' : 'Issue token'}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <FilterBar

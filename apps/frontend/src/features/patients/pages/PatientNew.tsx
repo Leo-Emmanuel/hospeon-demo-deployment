@@ -7,6 +7,9 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useCreatePatient } from '@/features/patients/hooks/usePatientQueries';
 import { CreatePatientPayload } from '@/services/patientService';
+import { departmentService } from '@/services/departmentService';
+import { useQuery } from '@tanstack/react-query';
+
 
 type Step = 'personal' | 'contact' | 'insurance';
 
@@ -30,6 +33,7 @@ interface PatientFormState {
   insurancePolicyNumber: string;
   insuranceMemberId: string;
   insurancePlanName: string;
+  departmentId: string;
 }
 
 const initialState: PatientFormState = {
@@ -52,6 +56,7 @@ const initialState: PatientFormState = {
   insurancePolicyNumber: '',
   insuranceMemberId: '',
   insurancePlanName: '',
+  departmentId: '',
 };
 
 const steps: { id: Step; label: string; description: string }[] = [
@@ -95,11 +100,18 @@ const buildPayload = (state: PatientFormState): CreatePatientPayload => ({
           planName: state.insurancePlanName.trim() || undefined,
         }
       : undefined,
+  departmentId: state.departmentId || undefined,
 });
 
 export function PatientNew() {
   const navigate = useNavigate();
   const createPatient = useCreatePatient();
+  const { data: deptsQuery } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentService.list(),
+  });
+  const departments = deptsQuery?.data || [];
+
   const [step, setStep] = useState<Step>('personal');
   const [form, setForm] = useState<PatientFormState>(initialState);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -238,6 +250,17 @@ export function PatientNew() {
                   <option value="O-">O-</option>
                   <option value="AB+">AB+</option>
                   <option value="AB-">AB-</option>
+                </Select>
+                <Select
+                  label="Department"
+                  value={form.departmentId}
+                  onChange={(event) => updateField('departmentId', event.target.value)}>
+                  <option value="">Select department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
                 </Select>
               </div>
             </Card>

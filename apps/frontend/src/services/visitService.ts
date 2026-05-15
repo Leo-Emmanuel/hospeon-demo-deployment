@@ -54,6 +54,14 @@ export const visitService = {
     id: string,
     payload: { chiefComplaint?: string; vitals?: Record<string, unknown> }
   ): Promise<ApiResponse<VisitRecord>> => apiClient.put(`/visits/${id}`, payload),
+  create: async (payload: {
+    patientId: string;
+    visitType: VisitType;
+    doctorId: string;
+    departmentId: string;
+    chiefComplaint?: string;
+    vitals?: Record<string, unknown>;
+  }): Promise<ApiResponse<VisitRecord>> => apiClient.post('/visits', payload),
 };
 
 export type VisitListResponseMeta = ApiMeta;
