@@ -54,6 +54,7 @@ import { DoctorPerformanceReport } from '@/features/reports/pages/DoctorPerforma
 import { PharmacyReport } from '@/features/reports/pages/PharmacyReport';
 import { RevenueReport } from '@/features/reports/pages/Reports';
 import { BranchesSettings } from '@/features/settings/pages/BranchesSettings';
+import { DepartmentsSettings } from '@/features/settings/pages/DepartmentsSettings';
 import { Integrations } from '@/features/settings/pages/Integrations';
 import { OrganizationSettings } from '@/features/settings/pages/OrganizationSettings';
 import { RolesPermissions, Staff } from '@/features/settings/pages/Settings';
@@ -144,6 +145,7 @@ export const protectedRoutes: RouteObject[] = [
           { path: 'admin/audit', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <AuditLog /> }] },
           { path: 'settings/organization', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <OrganizationSettings /> }] },
           { path: 'settings/branches', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <BranchesSettings /> }] },
+          { path: 'settings/departments', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <DepartmentsSettings /> }] },
           { path: 'settings/staff', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <Staff /> }] },
           { path: 'settings/roles', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <RolesPermissions /> }] },
           { path: 'settings/templates', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <Templates /> }] },

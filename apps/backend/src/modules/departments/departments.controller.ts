@@ -17,3 +17,12 @@ export const createDepartment = catchAsync(async (req: Request, res: Response) =
   });
   return successResponse(res, department, 'Department created', 201);
 });
+
+export const updateDepartment = catchAsync(async (req: Request, res: Response) => {
+  const department = await prisma.$transaction(async (tx) => {
+    const updated = await tx.department.update({ where: { id: req.params.id }, data: req.body });
+    await writeAuditLog(tx, { actorId: req.user?.userId, action: 'UPDATE', entityType: 'departments', entityId: updated.id, newValues: updated, ipAddress: req.ip });
+    return updated;
+  });
+  return successResponse(res, department, 'Department updated');
+});
