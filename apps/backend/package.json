@@ -8,7 +8,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate",
-    "start": "prisma migrate deploy && node dist/src/server.js"
+    "start": "prisma migrate deploy && node dist/server.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
