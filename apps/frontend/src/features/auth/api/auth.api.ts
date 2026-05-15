@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/axios';
+import { apiClient, RetriableRequestConfig } from '@/lib/axios';
 import { LoginDto, RegisterDto, AuthResponseDto } from '@hospeon/shared';
 
 export const authApi = {
@@ -11,7 +11,9 @@ export const authApi = {
   },
 
   getMe: async (): Promise<{ data: AuthResponseDto['user']; message: string }> => {
-    return apiClient.get('/auth/me');
+    return apiClient.get('/auth/me', {
+      suppressUnauthorizedRedirect: true,
+    } as RetriableRequestConfig);
   },
 
   logout: async (): Promise<void> => {

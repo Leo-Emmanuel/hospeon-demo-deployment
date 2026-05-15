@@ -2,9 +2,10 @@ import axios, { AxiosRequestConfig } from 'axios';
 import { env } from '../config/env';
 import { useAuthStore } from '../features/auth/store/auth.store';
 
-type RetriableRequestConfig = AxiosRequestConfig & {
+export type RetriableRequestConfig = AxiosRequestConfig & {
   _retry?: boolean;
   skipAuthRefresh?: boolean;
+  suppressUnauthorizedRedirect?: boolean;
 };
 
 export const apiClient = axios.create({
@@ -37,19 +38,24 @@ apiClient.interceptors.response.use(
       try {
         await apiClient.post('/auth/refresh', undefined, {
           skipAuthRefresh: true,
+          suppressUnauthorizedRedirect: originalRequest.suppressUnauthorizedRedirect,
         } as RetriableRequestConfig);
 
         return apiClient.request(originalRequest);
       } catch (refreshError) {
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        if (!originalRequest.suppressUnauthorizedRedirect) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }
 
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
-      window.location.href = '/login';
+      if (!originalRequest?.suppressUnauthorizedRedirect) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error.response?.data || error);
   }
