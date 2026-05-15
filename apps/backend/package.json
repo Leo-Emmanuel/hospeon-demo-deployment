@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "pnpm --filter @hospeon/shared build && tsc",
+    "db:migrate": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "start": "node dist/server.js"
+    "start": "prisma migrate deploy && node dist/server.js"
   },
   "dependencies": {
     "@hospeon/shared": "workspace:*",

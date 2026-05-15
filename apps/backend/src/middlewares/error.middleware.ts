@@ -17,7 +17,7 @@ export const errorMiddleware = (err: Error, req: Request, res: Response, next: N
   }
 
   if (err.name === 'PrismaClientKnownRequestError') {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse('Database request failed'));
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse('Database request failed'));
   }
 
   return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse('Internal Server Error'));
