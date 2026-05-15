@@ -35,7 +35,7 @@ export function SampleCollection() {
     if (!order) return;
     await updateStatus.mutateAsync({
       id: order.id,
-      status: 'SAMPLE_COLLECTED',
+      status: 'PROCESSING',
       notes: notes.trim() ? `${sampleCondition}: ${notes.trim()}` : sampleCondition,
     });
     navigate(`/lab/orders/${order.id}/results`);
