@@ -10,6 +10,7 @@ import { AIClinical } from '@/features/dashboard/pages/AIAssistant';
 import { AIContentReview } from '@/features/dashboard/pages/AIContentReview';
 import { DoctorDashboard } from '@/features/dashboard/pages/DoctorDashboard';
 import { LabDashboard } from '@/features/dashboard/pages/LabDashboard';
+import { OperationsDashboard } from '@/features/dashboard/pages/OperationsDashboard';
 import { PharmacyDashboard } from '@/features/dashboard/pages/PharmacyDashboard';
 import { ReceptionDashboard } from '@/features/dashboard/pages/ReceptionDashboard';
 import { StubPage } from '@/features/dashboard/pages/Stub';
@@ -78,7 +79,10 @@ export const protectedRoutes: RouteObject[] = [
           { path: 'dashboard/reception', element: <ReceptionDashboard /> },
           { path: 'dashboard/pharmacy', element: <PharmacyDashboard /> },
           { path: 'dashboard/lab', element: <LabDashboard /> },
+          { path: 'dashboard/accounting', element: <OperationsDashboard /> },
+          { path: 'dashboard/staff', element: <OperationsDashboard /> },
           { path: 'queue', element: <Queue /> },
+          { path: 'opd-queue', element: <Queue /> },
           { path: 'queue/display', element: <QueueDisplay /> },
           { path: 'calendar', element: <AppointmentCalendar /> },
           { 
@@ -86,6 +90,7 @@ export const protectedRoutes: RouteObject[] = [
             element: <ProtectedRoute allowedRoles={[Role.DOCTOR, Role.NURSE, Role.ADMIN, Role.RECEPTIONIST]} />, 
             children: [
               { path: '', element: <PatientsPage /> },
+              { path: 'register', element: <PatientNew /> },
               { path: 'new', element: <PatientNew /> },
               { path: ':id/timeline', element: <PatientProfile /> },
               { path: ':id', element: <PatientProfile /> }
@@ -93,6 +98,8 @@ export const protectedRoutes: RouteObject[] = [
           },
           { path: 'appointments', element: <AppointmentCalendar /> },
           { path: 'appointments/new', element: <NewAppointment /> },
+          { path: 'visits/today', element: <Queue /> },
+          { path: 'visits/:id/consult', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <Consultation /> }] },
           { path: 'consultations', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <Consultation /> }] },
           { path: 'prescriptions', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <Prescriptions /> }] },
           { path: 'followups', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <FollowUps /> }] },
@@ -102,7 +109,9 @@ export const protectedRoutes: RouteObject[] = [
           { path: 'nursing', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.NURSE, Role.DOCTOR]} />, children: [{ index: true, element: <NursingStation /> }] },
           { path: 'mar', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.NURSE, Role.DOCTOR]} />, children: [{ index: true, element: <MAR /> }] },
           { path: 'discharge', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <DischargeSummary /> }] },
+          { path: 'lab/queue', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <LabOrders /> }] },
           { path: 'lab/orders', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <LabOrders /> }] },
+          { path: 'lab/orders/:id/results', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.LAB_TECHNICIAN]} />, children: [{ index: true, element: <ResultEntry /> }] },
           { path: 'lab/reports', element: <ProtectedRoute allowedRoles={diagnosticRoles} />, children: [{ index: true, element: <LabReportReview /> }] },
           { path: 'lab/collection', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.LAB_TECHNICIAN]} />, children: [{ index: true, element: <SampleCollection /> }] },
           { path: 'lab/result-entry', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.LAB_TECHNICIAN]} />, children: [{ index: true, element: <ResultEntry /> }] },
@@ -128,6 +137,7 @@ export const protectedRoutes: RouteObject[] = [
           { path: 'reports/pharmacy', element: <ProtectedRoute allowedRoles={pharmacyRoles} />, children: [{ index: true, element: <PharmacyReport /> }] },
           { path: 'reports/doctors', element: <ProtectedRoute allowedRoles={[Role.ADMIN, Role.DOCTOR]} />, children: [{ index: true, element: <DoctorPerformanceReport /> }] },
           { path: 'reports/audit', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <AuditLog /> }] },
+          { path: 'admin/audit', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <AuditLog /> }] },
           { path: 'settings/organization', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <OrganizationSettings /> }] },
           { path: 'settings/branches', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <BranchesSettings /> }] },
           { path: 'settings/staff', element: <ProtectedRoute allowedRoles={adminRoles} />, children: [{ index: true, element: <Staff /> }] },

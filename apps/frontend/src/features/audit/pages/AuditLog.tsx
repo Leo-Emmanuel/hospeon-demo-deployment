@@ -1,305 +1,197 @@
-import React from 'react';
-import { DownloadIcon, ShieldCheckIcon, FilterIcon } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { FilterIcon, RefreshCwIcon, ShieldCheckIcon } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FilterBar, FilterChip } from '@/components/ui/FilterBar';
 import { Select } from '@/components/ui/Input';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
 import { MonoNumber } from '@/components/ui/MonoNumber';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MetricCard } from '@/components/ui/MetricCard';
-interface AuditEntry {
-  time: string;
-  user: string;
-  role: string;
-  action: string;
-  entity: string;
-  pid: string;
-  ip: string;
-  device: string;
-  reason?: string;
-  sensitivity: 'low' | 'medium' | 'high';
-}
-const entries: AuditEntry[] = [
-{
-  time: '2026-05-12 12:42:18',
-  user: 'Dr. Anjali Menon',
-  role: 'Doctor',
-  action: 'Viewed',
-  entity: 'Patient record',
-  pid: 'P-100482',
-  ip: '49.207.182.14',
-  device: 'macOS · Chrome 124',
-  sensitivity: 'low'
-},
-{
-  time: '2026-05-12 12:38:04',
-  user: 'Dr. Anjali Menon',
-  role: 'Doctor',
-  action: 'Updated prescription',
-  entity: 'Prescription RX-9824',
-  pid: 'P-100482',
-  ip: '49.207.182.14',
-  device: 'macOS · Chrome 124',
-  sensitivity: 'medium'
-},
-{
-  time: '2026-05-12 12:18:51',
-  user: 'Priya R.',
-  role: 'Receptionist',
-  action: 'Collected payment',
-  entity: 'Invoice INV-2026-04812',
-  pid: 'P-100482',
-  ip: '49.207.182.18',
-  device: 'Windows · Edge 124',
-  sensitivity: 'medium'
-},
-{
-  time: '2026-05-12 11:32:09',
-  user: 'Anu V.',
-  role: 'Lab Technician',
-  action: 'Submitted result',
-  entity: 'Lab order LAB-2026-1243',
-  pid: 'P-100482',
-  ip: '49.207.182.22',
-  device: 'Windows · Chrome 124',
-  sensitivity: 'medium'
-},
-{
-  time: '2026-05-12 10:14:42',
-  user: 'Manoj P.',
-  role: 'Pharmacist',
-  action: 'Dispensed medicines',
-  entity: 'Sale PSL-2026-1184',
-  pid: 'P-100480',
-  ip: '49.207.182.40',
-  device: 'Android · Chrome 124',
-  sensitivity: 'low'
-},
-{
-  time: '2026-05-12 09:48:21',
-  user: 'Dr. Rahul Verma',
-  role: 'Doctor',
-  action: 'Started consultation',
-  entity: 'Consultation CN-3812',
-  pid: 'P-100480',
-  ip: '49.207.182.16',
-  device: 'iPad · Safari 17',
-  sensitivity: 'low'
-},
-{
-  time: '2026-05-12 09:12:08',
-  user: 'Dr. Anjali Menon',
-  role: 'Admin',
-  action: 'Exported report',
-  entity: 'Revenue report (May 2026)',
-  pid: '—',
-  ip: '49.207.182.14',
-  device: 'macOS · Chrome 124',
-  reason: 'Monthly review with partner',
-  sensitivity: 'high'
-},
-{
-  time: '2026-05-12 08:42:33',
-  user: 'Sunil K.',
-  role: 'Accountant',
-  action: 'Refund approved',
-  entity: 'Refund REF-218',
-  pid: 'P-100463',
-  ip: '49.207.182.18',
-  device: 'Windows · Chrome 124',
-  reason: 'Service not provided',
-  sensitivity: 'high'
-},
-{
-  time: '2026-05-12 08:02:14',
-  user: 'Priya R.',
-  role: 'Receptionist',
-  action: 'Logged in',
-  entity: 'Session',
-  pid: '—',
-  ip: '49.207.182.18',
-  device: 'Windows · Edge 124',
-  sensitivity: 'low'
-},
-{
-  time: '2026-05-12 07:30:00',
-  user: 'Anu V.',
-  role: 'Lab Technician',
-  action: 'Logged in',
-  entity: 'Session',
-  pid: '—',
-  ip: '49.207.182.22',
-  device: 'Windows · Chrome 124',
-  sensitivity: 'low'
-},
-{
-  time: '2026-05-11 22:14:08',
-  user: 'system',
-  role: 'System',
-  action: 'Automated backup',
-  entity: 'Daily DB backup',
-  pid: '—',
-  ip: '—',
-  device: 'Internal',
-  sensitivity: 'low'
-},
-{
-  time: '2026-05-11 19:42:21',
-  user: 'Dr. Anjali Menon',
-  role: 'Admin',
-  action: 'Changed permissions',
-  entity: 'Role: Receptionist',
-  pid: '—',
-  ip: '49.207.182.14',
-  device: 'macOS · Chrome 124',
-  reason: 'Added refund approval permission',
-  sensitivity: 'high'
-}];
+import { useAuditLogs } from '@/features/audit/hooks/useAuditQueries';
+import { AuditLogRecord } from '@/services/auditService';
 
-const sensitivityTone = {
-  low: 'neutral',
-  medium: 'info',
-  high: 'warning'
-} as const;
+const toneFromAction = (action: string) => {
+  const normalized = action.toUpperCase();
+  if (normalized.includes('DELETE') || normalized.includes('CANCEL')) return 'warning';
+  if (normalized.includes('APPROVE') || normalized.includes('COMPLETE')) return 'success';
+  if (normalized.includes('CREATE')) return 'info';
+  return 'neutral';
+};
+
+const formatDateTime = (value: string) =>
+  new Date(value).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
 export function AuditLog() {
-  const cols: Column<AuditEntry>[] = [
-  {
-    key: 'time',
-    header: 'Timestamp',
-    render: (r) =>
-    <MonoNumber size="xs" className="text-ink-secondary">
-          {r.time}
-        </MonoNumber>
+  const today = new Date().toISOString().slice(0, 10);
+  const [search, setSearch] = useState('');
+  const [entityType, setEntityType] = useState('');
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
 
-  },
-  {
-    key: 'user',
-    header: 'User',
-    render: (r) =>
-    <div>
-          <div className="text-sm font-medium">{r.user}</div>
+  const auditQuery = useAuditLogs({
+    entityType: entityType || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    limit: 100,
+  });
+
+  const entries = auditQuery.data?.data || [];
+  const entityOptions = Array.from(new Set(entries.map((entry) => entry.entityType))).sort();
+  const filteredEntries = useMemo(() => {
+    const normalized = search.trim().toLowerCase();
+    if (!normalized) return entries;
+
+    return entries.filter((entry) => {
+      const actorName = entry.actor?.name?.toLowerCase() || '';
+      return (
+        actorName.includes(normalized) ||
+        entry.action.toLowerCase().includes(normalized) ||
+        entry.entityType.toLowerCase().includes(normalized) ||
+        (entry.entityId || '').toLowerCase().includes(normalized) ||
+        (entry.ipAddress || '').toLowerCase().includes(normalized)
+      );
+    });
+  }, [entries, search]);
+
+  const highImpactCount = entries.filter((entry) => toneFromAction(entry.action) === 'warning').length;
+  const actionsInRange = entries.length;
+  const uniqueActors = new Set(entries.map((entry) => entry.actor?.id).filter(Boolean)).size;
+
+  const cols: Column<AuditLogRecord>[] = [
+    {
+      key: 'createdAt',
+      header: 'Timestamp',
+      render: (entry) => (
+        <MonoNumber size="xs" className="text-ink-secondary">
+          {formatDateTime(entry.createdAt)}
+        </MonoNumber>
+      ),
+    },
+    {
+      key: 'actor',
+      header: 'User',
+      render: (entry) => (
+        <div>
+          <div className="text-sm font-medium">{entry.actor?.name || 'System'}</div>
           <StatusBadge tone="neutral" size="sm">
-            {r.role}
+            {entry.actor?.role || 'SYSTEM'}
           </StatusBadge>
         </div>
-
-  },
-  {
-    key: 'action',
-    header: 'Action',
-    render: (r) => <span className="text-sm font-medium">{r.action}</span>
-  },
-  {
-    key: 'entity',
-    header: 'Entity',
-    render: (r) =>
-    <span className="text-sm text-ink-secondary">{r.entity}</span>
-
-  },
-  {
-    key: 'pid',
-    header: 'Patient ID',
-    render: (r) =>
-    r.pid === '—' ?
-    <span className="text-ink-tertiary">—</span> :
-
-    <MonoNumber size="xs">{r.pid}</MonoNumber>
-
-  },
-  {
-    key: 'ip',
-    header: 'IP / Device',
-    render: (r) =>
-    <div>
-          <MonoNumber size="xs">{r.ip}</MonoNumber>
-          <div className="text-[10px] text-ink-tertiary">{r.device}</div>
-        </div>
-
-  },
-  {
-    key: 'sensitivity',
-    header: 'Sensitivity',
-    render: (r) =>
-    <StatusBadge tone={sensitivityTone[r.sensitivity] as any} size="sm">
-          {r.sensitivity}
+      ),
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      render: (entry) => (
+        <StatusBadge tone={toneFromAction(entry.action) as 'neutral' | 'warning' | 'success' | 'info'} size="sm">
+          {entry.action}
         </StatusBadge>
-
-  },
-  {
-    key: 'reason',
-    header: 'Reason',
-    render: (r) =>
-    r.reason ?
-    <span className="text-xs text-ink-secondary italic">
-            "{r.reason}"
-          </span> :
-
-    <span className="text-ink-tertiary">—</span>
-
-  }];
+      ),
+    },
+    {
+      key: 'entityType',
+      header: 'Entity',
+      render: (entry) => (
+        <div>
+          <div className="text-sm text-ink-secondary">{entry.entityType}</div>
+          <MonoNumber size="xs">{entry.entityId || '—'}</MonoNumber>
+        </div>
+      ),
+    },
+    {
+      key: 'ipAddress',
+      header: 'IP address',
+      render: (entry) => <MonoNumber size="xs">{entry.ipAddress || '—'}</MonoNumber>,
+    },
+  ];
 
   return (
     <div>
       <PageHeader
         title="Audit log"
-        description="Immutable record of every action taken in Hospeon. Used for compliance, incident review, and clinical accountability."
-        breadcrumbs={[
-        {
-          label: 'Reports'
-        },
-        {
-          label: 'Audit logs'
-        }]
-        }
+        description="Immutable operational events pulled from the live backend for compliance and incident review."
+        breadcrumbs={[{ label: 'Reports' }, { label: 'Audit logs' }]}
         actions={
-        <>
+          <>
             <Button variant="secondary" icon={<FilterIcon />}>
-              Advanced filters
+              Live filters
             </Button>
-            <Button variant="primary" icon={<DownloadIcon />}>
-              Export CSV
+            <Button variant="primary" icon={<RefreshCwIcon />} onClick={() => auditQuery.refetch()}>
+              Refresh
             </Button>
           </>
-        } />
-      
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <MetricCard
-          label="Events today"
-          value="248"
-          icon={<ShieldCheckIcon />} />
-        
-        <MetricCard label="High-sensitivity" value="6" tone="warning" />
-        <MetricCard label="Failed logins" value="2" tone="danger" />
-        <MetricCard label="Retention" value="7 yrs" sublabel="immutable" />
+        <MetricCard label="Events in range" value={String(actionsInRange)} icon={<ShieldCheckIcon />} />
+        <MetricCard label="High-impact actions" value={String(highImpactCount)} tone="warning" />
+        <MetricCard label="Unique actors" value={String(uniqueActors)} />
+        <MetricCard label="Retention" value="DB-backed" sublabel="live audit trail" />
       </div>
 
       <Card>
-        <FilterBar searchPlaceholder="Search user, action, entity, or patient…">
-          <FilterChip active count={entries.length}>
+        <FilterBar
+          searchPlaceholder="Search user, action, entity, ID, or IP..."
+          searchValue={search}
+          onSearchChange={setSearch}>
+          <FilterChip active count={filteredEntries.length}>
             All
           </FilterChip>
-          <FilterChip count={3}>High-sensitivity</FilterChip>
-          <FilterChip count={1}>Refunds</FilterChip>
-          <FilterChip count={2}>Permission changes</FilterChip>
-          <Select className="h-9 text-xs w-40">
-            <option>All users</option>
+          <FilterChip count={highImpactCount}>High-impact</FilterChip>
+          <Select className="h-9 text-xs w-40" value={entityType} onChange={(event) => setEntityType(event.target.value)}>
+            <option value="">All entities</option>
+            {entityOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </Select>
-          <Select className="h-9 text-xs w-40">
-            <option>Today</option>
-            <option>Last 7 days</option>
-            <option>This month</option>
-          </Select>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="h-9 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark px-3 text-sm"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="h-9 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark px-3 text-sm"
+          />
         </FilterBar>
-        <DataTable
-          data={entries}
-          columns={cols}
-          rowKey={(_, i) => String(i)}
-          dense />
-        
-      </Card>
-    </div>);
 
+        {auditQuery.isLoading ? (
+          <LoadingSkeleton rows={8} />
+        ) : auditQuery.isError ? (
+          <EmptyState
+            title="Audit log unavailable"
+            description={(auditQuery.error as { message?: string })?.message || 'The audit log could not be loaded.'}
+            action={
+              <Button variant="primary" onClick={() => auditQuery.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : (
+          <DataTable
+            data={filteredEntries}
+            columns={cols}
+            rowKey={(entry) => entry.id}
+            dense
+            emptyState={<EmptyState title="No audit events found" description="No audit events match the selected filters." />}
+          />
+        )}
+      </Card>
+    </div>
+  );
 }
