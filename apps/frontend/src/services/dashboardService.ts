@@ -7,6 +7,7 @@ export interface AdminDashboardSummary {
   patientsToday: number;
   opdVisitsToday: number;
   pendingLabs: number;
+  admissionsToday: number;
 }
 
 export interface DoctorDashboardSummary extends AdminDashboardSummary {
@@ -32,7 +33,12 @@ export interface PharmacyDashboardSummary extends AdminDashboardSummary {
 
 export interface DoctorWorkloadItem {
   doctorId: string;
-  _count: number;
+  doctorName: string;
+  consultationCount: number;
+}
+
+export interface DashboardSummaryParams {
+  day?: 'today' | 'yesterday';
 }
 
 export interface AuditActivityItem {
@@ -74,8 +80,10 @@ export interface PharmacyWorkItem {
 }
 
 export const dashboardService = {
-  getSummary: async (): Promise<ApiResponse<AdminDashboardSummary | DoctorDashboardSummary | LabDashboardSummary | PharmacyDashboardSummary>> =>
-    apiClient.get('/dashboard/summary'),
+  getSummary: async (
+    params: DashboardSummaryParams = {}
+  ): Promise<ApiResponse<AdminDashboardSummary | DoctorDashboardSummary | LabDashboardSummary | PharmacyDashboardSummary>> =>
+    apiClient.get('/dashboard/summary', { params }),
   getOpdQueue: async (): Promise<ApiResponse<VisitRecord[]>> => apiClient.get('/dashboard/opd-queue'),
   getLabQueue: async (): Promise<ApiResponse<LabOrderRecord[]>> => apiClient.get('/dashboard/lab-queue'),
   getPharmacyWorklist: async (): Promise<ApiResponse<PharmacyWorkItem[]>> => apiClient.get('/dashboard/pharmacy-worklist'),

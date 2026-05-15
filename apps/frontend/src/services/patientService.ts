@@ -136,6 +136,7 @@ export interface PatientListParams {
   bloodGroup?: string;
   visitFrom?: string;
   visitTo?: string;
+  followUpDate?: string;
 }
 
 export interface CreatePatientPayload {

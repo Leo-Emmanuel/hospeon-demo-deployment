@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardService } from '@/services/dashboardService';
+import { dashboardService, DashboardSummaryParams } from '@/services/dashboardService';
 
 export const dashboardKeys = {
   all: ['dashboard'] as const,
-  summary: () => [...dashboardKeys.all, 'summary'] as const,
+  summary: (params: DashboardSummaryParams = {}) => [...dashboardKeys.all, 'summary', params] as const,
   opdQueue: () => [...dashboardKeys.all, 'opd-queue'] as const,
   labQueue: () => [...dashboardKeys.all, 'lab-queue'] as const,
   pharmacyWorklist: () => [...dashboardKeys.all, 'pharmacy-worklist'] as const,
@@ -11,10 +11,10 @@ export const dashboardKeys = {
   recentActivity: () => [...dashboardKeys.all, 'recent-activity'] as const,
 };
 
-export const useDashboardSummary = () =>
+export const useDashboardSummary = (params: DashboardSummaryParams = {}) =>
   useQuery({
-    queryKey: dashboardKeys.summary(),
-    queryFn: () => dashboardService.getSummary(),
+    queryKey: dashboardKeys.summary(params),
+    queryFn: () => dashboardService.getSummary(params),
     refetchInterval: 60000,
   });
 

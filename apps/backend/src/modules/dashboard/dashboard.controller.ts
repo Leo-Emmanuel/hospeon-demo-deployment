@@ -4,9 +4,12 @@ import { catchAsync } from '../../utils/catch-async';
 import { successResponse } from '../../utils/api-response';
 
 const cache = new Map<string, { expiresAt: number; data: unknown }>();
-const todayRange = () => {
+const dayRange = (day: 'today' | 'yesterday' = 'today') => {
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
+  if (day === 'yesterday') {
+    start.setUTCDate(start.getUTCDate() - 1);
+  }
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 1);
   return { start, end };
@@ -14,15 +17,22 @@ const todayRange = () => {
 
 export const dashboardSummary = catchAsync(async (req: Request, res: Response) => {
   const role = req.user?.role || 'STAFF';
-  const cacheKey = `summary:${role}:${req.user?.userId}`;
+  const requestedDay = req.query.day === 'yesterday' ? 'yesterday' : 'today';
+  const cacheKey = `summary:${role}:${req.user?.userId}:${requestedDay}`;
   const cached = cache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return successResponse(res, cached.data, 'Dashboard summary fetched');
 
-  const { start, end } = todayRange();
+  const { start, end } = dayRange(requestedDay);
   const base = {
     patientsToday: await prisma.patient.count({ where: { createdAt: { gte: start, lt: end }, deletedAt: null } }),
     opdVisitsToday: await prisma.visit.count({ where: { visitType: 'OPD', checkedInAt: { gte: start, lt: end } } }),
-    pendingLabs: await prisma.labOrder.count({ where: { status: { in: ['PENDING', 'SAMPLE_COLLECTED', 'PROCESSING', 'RESULTED'] } } }),
+    pendingLabs: await prisma.labOrder.count({
+      where: {
+        status: { in: ['PENDING', 'SAMPLE_COLLECTED', 'PROCESSING', 'RESULTED'] },
+        orderedAt: { gte: start, lt: end },
+      },
+    }),
+    admissionsToday: await prisma.visit.count({ where: { visitType: 'IPD', checkedInAt: { gte: start, lt: end } } }),
   };
   let data: unknown = base;
   if (role === 'DOCTOR') {
@@ -65,7 +75,7 @@ export const dashboardSummary = catchAsync(async (req: Request, res: Response) =
 });
 
 export const opdQueue = catchAsync(async (_req: Request, res: Response) => {
-  const { start, end } = todayRange();
+  const { start, end } = dayRange();
   const queue = await prisma.visit.findMany({ where: { visitType: 'OPD', checkedInAt: { gte: start, lt: end } }, orderBy: { tokenNumber: 'asc' }, include: { patient: true, doctor: { select: { id: true, name: true } }, department: true } });
   return successResponse(res, queue, 'OPD queue fetched');
 });
@@ -76,9 +86,29 @@ export const labQueue = catchAsync(async (_req: Request, res: Response) => {
 });
 
 export const doctorWorkload = catchAsync(async (_req: Request, res: Response) => {
-  const { start, end } = todayRange();
-  const workload = await prisma.consultation.groupBy({ by: ['doctorId'], where: { createdAt: { gte: start, lt: end } }, _count: true });
-  return successResponse(res, workload, 'Doctor workload fetched');
+  const { start, end } = dayRange();
+  const workload = await prisma.$queryRaw<Array<{ doctorId: string; doctorName: string; consultationCount: bigint }>>`
+    SELECT
+      c.doctor_id AS "doctorId",
+      u.name AS "doctorName",
+      COUNT(c.id)::bigint AS "consultationCount"
+    FROM consultations c
+    INNER JOIN users u ON u.id = c.doctor_id
+    WHERE c.created_at >= ${start}
+      AND c.created_at < ${end}
+      AND u.deleted_at IS NULL
+    GROUP BY c.doctor_id, u.name
+    ORDER BY COUNT(c.id) DESC, u.name ASC
+  `;
+  return successResponse(
+    res,
+    workload.map((item) => ({
+      doctorId: item.doctorId,
+      doctorName: item.doctorName,
+      consultationCount: Number(item.consultationCount),
+    })),
+    'Doctor workload fetched'
+  );
 });
 
 export const recentActivity = catchAsync(async (_req: Request, res: Response) => {
@@ -87,7 +117,7 @@ export const recentActivity = catchAsync(async (_req: Request, res: Response) =>
 });
 
 export const pharmacyWorklist = catchAsync(async (_req: Request, res: Response) => {
-  const { start, end } = todayRange();
+  const { start, end } = dayRange();
   const worklist = await prisma.prescription.findMany({
     where: {
       isActive: true,

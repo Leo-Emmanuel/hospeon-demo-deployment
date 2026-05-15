@@ -10,16 +10,15 @@ import { MonoNumber } from '@/components/ui/MonoNumber';
 import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
 import { useVisit, useUpdateVisitStatus, visitKeys } from '@/features/queue/hooks/useVisitQueries';
 import {
-  useCompleteConsultation,
+  useCompleteVisit,
   useConsultation,
   useCreateConsultation,
-  useCreateLabOrder,
-  useCreatePrescriptions,
   useLabTestsCatalog,
   useUpdateConsultation,
 } from '@/features/consultations/hooks/useConsultationQueries';
 import { PrescriptionPayload } from '@/services/consultationService';
 import { queryClient } from '@/lib/react-query';
+import { callToast } from '@/lib/toast-singleton';
 
 interface MedicationDraft extends PrescriptionPayload {
   localId: string;
@@ -67,9 +66,7 @@ export function Consultation() {
   const updateVisitStatus = useUpdateVisitStatus();
   const createConsultation = useCreateConsultation();
   const updateConsultation = useUpdateConsultation();
-  const createPrescriptions = useCreatePrescriptions();
-  const createLabOrder = useCreateLabOrder();
-  const completeConsultation = useCompleteConsultation();
+  const completeVisit = useCompleteVisit();
   const labTestsQuery = useLabTestsCatalog();
   const visit = visitQuery.data?.data;
   const consultationId = visit?.consultation?.id || '';
@@ -83,7 +80,6 @@ export function Consultation() {
   const [generalAdvice, setGeneralAdvice] = useState('');
   const [medications, setMedications] = useState<MedicationDraft[]>([createMedicationDraft()]);
   const [labOrders, setLabOrders] = useState<LabOrderDraft[]>([]);
-  const [submissionError, setSubmissionError] = useState('');
 
   useEffect(() => {
     if (!consultation) return;
@@ -111,9 +107,7 @@ export function Consultation() {
   const isBusy =
     createConsultation.isPending ||
     updateConsultation.isPending ||
-    createPrescriptions.isPending ||
-    createLabOrder.isPending ||
-    completeConsultation.isPending ||
+    completeVisit.isPending ||
     updateVisitStatus.isPending;
 
   const latestVitals = useMemo(() => {
@@ -176,7 +170,6 @@ export function Consultation() {
   };
 
   const saveDraft = async () => {
-    setSubmissionError('');
     try {
       await ensureVisitInConsultation();
       const ensured = await ensureConsultation();
@@ -189,55 +182,39 @@ export function Consultation() {
           followUpDate: followUpDate || undefined,
         },
       });
+      callToast('success', 'Draft saved');
     } catch (error) {
-      setSubmissionError((error as { message?: string })?.message || 'Could not save consultation draft');
+      callToast('error', (error as { message?: string })?.message || 'Could not save consultation draft');
     }
   };
 
   const completeFlow = async () => {
-    setSubmissionError('');
-
     try {
-      const activeVisit = await ensureVisitInConsultation();
-      const ensured = await ensureConsultation();
-
-      await updateConsultation.mutateAsync({
-        id: ensured.id,
-        payload: {
-          diagnosis,
-          diagnosisCode: diagnosisCode || undefined,
-          clinicalNotes: [clinicalNotes, generalAdvice].filter(Boolean).join('\n\n'),
-          followUpDate: followUpDate || undefined,
-        },
-      });
-
       const validMeds = medications.filter(
         (item) => item.drugName.trim() && item.dosage.trim() && item.frequency.trim() && item.durationDays > 0
       );
-      if (validMeds.length > 0) {
-        await createPrescriptions.mutateAsync({
-          consultationId: ensured.id,
-          prescriptions: validMeds.map(({ localId, ...item }) => item),
-        });
-      }
-
       const validOrders = labOrders.filter((item) => item.testCatalogId);
-      for (const order of validOrders) {
-        await createLabOrder.mutateAsync({
-          visitId: activeVisit.id,
-          consultationId: ensured.id,
-          patientId: activeVisit.patientId,
+
+      await completeVisit.mutateAsync({
+        visitId: visit.id,
+        diagnosis: diagnosis || undefined,
+        diagnosisCode: diagnosisCode || undefined,
+        clinicalNotes: [clinicalNotes, generalAdvice].filter(Boolean).join('\n\n') || undefined,
+        followUpDate: followUpDate || undefined,
+        prescriptions: validMeds.map(({ localId, ...rx }) => rx),
+        labOrders: validOrders.map(({ localId, ...order }) => ({
           testCatalogId: order.testCatalogId,
           priority: order.priority,
           notes: order.notes || undefined,
-        });
-      }
+        })),
+      });
 
-      await completeConsultation.mutateAsync(ensured.id);
       queryClient.invalidateQueries({ queryKey: visitKeys.detail(visit.id) });
-      navigate(`/patients/${patient.id}`);
+      callToast('success', 'Consultation completed');
+      navigate('/queue');
     } catch (error) {
-      setSubmissionError((error as { message?: string })?.message || 'Could not complete consultation');
+      callToast('error', (error as { message?: string })?.message || 'Could not complete consultation');
+      // Form is intentionally NOT cleared — doctor can fix and retry
     }
   };
 
@@ -519,12 +496,6 @@ export function Consultation() {
               </div>
             )}
           </Card>
-
-          {submissionError ? (
-            <Card className="border-danger/30 bg-danger-soft/40">
-              <p className="text-sm text-danger">{submissionError}</p>
-            </Card>
-          ) : null}
 
           {consultation ? (
             <Card>

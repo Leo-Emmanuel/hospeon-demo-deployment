@@ -10,6 +10,11 @@ export class PatientsService {
     const { page, limit, skip, take } = getPagination(query);
     const visitFrom = query.visitFrom ? new Date(query.visitFrom) : undefined;
     const visitTo = query.visitTo ? new Date(query.visitTo) : undefined;
+    const followUpDate = query.followUpDate ? new Date(query.followUpDate) : undefined;
+    const followUpDateEnd = followUpDate ? new Date(followUpDate) : undefined;
+    if (followUpDateEnd) {
+      followUpDateEnd.setUTCDate(followUpDateEnd.getUTCDate() + 1);
+    }
     const sortFieldMap: Record<string, Prisma.PatientOrderByWithRelationInput> = {
       createdAt: { createdAt: query.order || 'desc' },
       updatedAt: { updatedAt: query.order || 'desc' },
@@ -32,6 +37,16 @@ export class PatientsService {
                   },
                 }
               : {}),
+          },
+        },
+      }),
+      ...(followUpDate && followUpDateEnd && {
+        consultations: {
+          some: {
+            followUpDate: {
+              gte: followUpDate,
+              lt: followUpDateEnd,
+            },
           },
         },
       }),

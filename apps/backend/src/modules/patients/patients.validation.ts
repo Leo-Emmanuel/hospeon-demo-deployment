@@ -6,6 +6,7 @@ export const patientQuerySchema = paginationQuerySchema.extend({
   bloodGroup: z.string().optional(),
   visitFrom: z.string().optional(),
   visitTo: z.string().optional(),
+  followUpDate: z.string().optional(),
 });
 
 export const createPatientSchema = z.object({

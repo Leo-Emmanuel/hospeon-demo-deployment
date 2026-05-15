@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   consultationService,
+  CompleteVisitPayload,
   ConsultationPayload,
   LabOrderPayload,
   PrescriptionPayload,
@@ -68,6 +69,19 @@ export const useCompleteConsultation = () => {
     mutationFn: (id: string) => consultationService.complete(id),
     onSuccess: (response) => {
       queryClient.setQueryData(consultationKeys.detail(response.data.id), response);
+    },
+  });
+};
+
+export const useCompleteVisit = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CompleteVisitPayload) => consultationService.completeVisit(payload),
+    onSuccess: (_response, variables) => {
+      // Invalidate so queue + patient profile reflect the completed state
+      queryClient.invalidateQueries({ queryKey: ['visits', variables.visitId] });
+      queryClient.invalidateQueries({ queryKey: consultationKeys.all });
     },
   });
 };

@@ -39,6 +39,22 @@ export interface LabOrderPayload {
   notes?: string;
 }
 
+export interface CompleteVisitLabOrder {
+  testCatalogId: string;
+  priority: 'ROUTINE' | 'URGENT' | 'STAT';
+  notes?: string;
+}
+
+export interface CompleteVisitPayload {
+  visitId: string;
+  diagnosis?: string;
+  diagnosisCode?: string;
+  clinicalNotes?: string;
+  followUpDate?: string;
+  prescriptions: PrescriptionPayload[];
+  labOrders: CompleteVisitLabOrder[];
+}
+
 export interface LabTestCatalogItem {
   id: string;
   name: string;
@@ -67,4 +83,8 @@ export const consultationService = {
     apiClient.post('/lab-orders', payload),
   getLabTestsCatalog: async (): Promise<ApiResponse<LabTestCatalogItem[]>> =>
     apiClient.get('/lab-tests-catalog'),
+  completeVisit: async (
+    payload: CompleteVisitPayload
+  ): Promise<ApiResponse<{ consultation: ConsultationRecord; prescriptions: unknown[]; labOrders: unknown[] }>> =>
+    apiClient.post('/consultations/complete-visit', payload),
 };

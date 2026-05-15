@@ -2,6 +2,7 @@ import React from 'react';
 import { useRoutes, Navigate } from 'react-router-dom';
 import { publicRoutes } from './public.routes';
 import { protectedRoutes } from './protected.routes';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 
 export default function AppRoutes() {
   const element = useRoutes([
@@ -9,5 +10,10 @@ export default function AppRoutes() {
     ...protectedRoutes,
     { path: '*', element: <Navigate to="/dashboard" replace /> }
   ]);
-  return <>{element}</>;
+  return (
+    <>
+      <ProgressBar />
+      {element}
+    </>
+  );
 }

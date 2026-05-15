@@ -6,8 +6,12 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "pnpm --filter @hospeon/shared build && tsc",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
     "postinstall": "prisma generate",
     "start": "prisma migrate deploy && node dist/server.js"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@hospeon/shared": "workspace:*",
@@ -15,7 +19,6 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^20.10.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -30,6 +33,7 @@
   "devDependencies": {
     "@hospeon/tsconfig": "workspace:*",
     "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^20.19.41",
     "pino-pretty": "^10.2.3",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"

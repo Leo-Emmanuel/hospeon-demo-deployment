@@ -1,6 +1,7 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { env } from '../config/env';
 import { useAuthStore } from '../features/auth/store/auth.store';
+import { callToast } from './toast-singleton';
 
 export type RetriableRequestConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -22,9 +23,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined;
     const requestUrl = originalRequest?.url || '';
+    const status = error.response?.status;
+    const message = error.response?.data?.message;
 
     if (
-      error.response?.status === 401 &&
+      status === 401 &&
       originalRequest &&
       !originalRequest._retry &&
       !originalRequest.skipAuthRefresh &&
@@ -45,17 +48,30 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         useAuthStore.getState().logout();
         if (!originalRequest.suppressUnauthorizedRedirect) {
+          callToast('error', 'Session expired');
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
       }
     }
 
-    if (error.response?.status === 401) {
+    if (!error.response) {
+      callToast('error', 'Network error. Check your connection.');
+      return Promise.reject(error);
+    }
+
+    if (status === 401) {
       useAuthStore.getState().logout();
       if (!originalRequest?.suppressUnauthorizedRedirect) {
+        callToast('error', 'Session expired');
         window.location.href = '/login';
       }
+    } else if (status === 403) {
+      callToast('error', 'You do not have permission to do this');
+    } else if (status === 422) {
+      callToast('error', message || 'The request could not be processed.');
+    } else if (status >= 500) {
+      callToast('error', 'Server error. Please try again.');
     }
     return Promise.reject(error.response?.data || error);
   }
