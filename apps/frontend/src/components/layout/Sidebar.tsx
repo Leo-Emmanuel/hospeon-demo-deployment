@@ -333,6 +333,11 @@ const nav: {
     icon: <BuildingIcon />
   },
   {
+    label: 'Departments',
+    to: '/settings/departments',
+    icon: <BuildingIcon />
+  },
+  {
     label: 'Staff',
     to: '/settings/staff',
     icon: <UsersIcon />
