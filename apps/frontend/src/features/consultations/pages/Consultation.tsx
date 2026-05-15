@@ -1,589 +1,562 @@
-import React, { useState } from 'react';
-import {
-  SparklesIcon,
-  SaveIcon,
-  PrinterIcon,
-  SendIcon,
-  CheckIcon,
-  AlertTriangleIcon,
-  PlusIcon,
-  SearchIcon,
-  FlaskConicalIcon,
-  PillIcon,
-  FileTextIcon,
-  ClipboardListIcon,
-  XIcon } from
-'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckIcon, FlaskConicalIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, SectionTitle } from '@/components/ui/Card';
-import { Button, IconButton } from '@/components/ui/Button';
-import { Input, Textarea } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Input, Select, Textarea } from '@/components/ui/Input';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
 import { MonoNumber } from '@/components/ui/MonoNumber';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { cn } from '@/lib/cn';
-const sections = [
-{
-  id: 'complaint',
-  label: 'Complaint'
-},
-{
-  id: 'history',
-  label: 'History'
-},
-{
-  id: 'examination',
-  label: 'Examination'
-},
-{
-  id: 'diagnosis',
-  label: 'Diagnosis'
-},
-{
-  id: 'prescription',
-  label: 'Prescription'
-},
-{
-  id: 'labs',
-  label: 'Lab Orders'
-},
-{
-  id: 'advice',
-  label: 'Advice'
-},
-{
-  id: 'followup',
-  label: 'Follow-up'
-}];
+import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
+import { useVisit, useUpdateVisitStatus, visitKeys } from '@/features/queue/hooks/useVisitQueries';
+import {
+  useCompleteConsultation,
+  useConsultation,
+  useCreateConsultation,
+  useCreateLabOrder,
+  useCreatePrescriptions,
+  useLabTestsCatalog,
+  useUpdateConsultation,
+} from '@/features/consultations/hooks/useConsultationQueries';
+import { PrescriptionPayload } from '@/services/consultationService';
+import { queryClient } from '@/lib/react-query';
+
+interface MedicationDraft extends PrescriptionPayload {
+  localId: string;
+}
+
+interface LabOrderDraft {
+  localId: string;
+  testCatalogId: string;
+  priority: 'ROUTINE' | 'URGENT' | 'STAT';
+  notes: string;
+}
+
+const createMedicationDraft = (): MedicationDraft => ({
+  localId: crypto.randomUUID(),
+  drugName: '',
+  dosage: '',
+  frequency: '',
+  durationDays: 5,
+  route: '',
+  instructions: '',
+});
+
+const createLabOrderDraft = (): LabOrderDraft => ({
+  localId: crypto.randomUUID(),
+  testCatalogId: '',
+  priority: 'ROUTINE',
+  notes: '',
+});
+
+const formatDateTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
 
 export function Consultation() {
-  const [section, setSection] = useState('complaint');
-  const [showAI, setShowAI] = useState(true);
-  const [meds, setMeds] = useState([
-  {
-    name: 'Metformin 500mg',
-    dose: '1 tab',
-    freq: 'BD',
-    dur: '30 days',
-    food: 'After food',
-    qty: 60
-  },
-  {
-    name: 'Telmisartan 40mg',
-    dose: '1 tab',
-    freq: 'OD',
-    dur: '30 days',
-    food: 'Before food',
-    qty: 30
-  }]
-  );
+  const navigate = useNavigate();
+  const { id = '' } = useParams();
+  const visitQuery = useVisit(id);
+  const updateVisitStatus = useUpdateVisitStatus();
+  const createConsultation = useCreateConsultation();
+  const updateConsultation = useUpdateConsultation();
+  const createPrescriptions = useCreatePrescriptions();
+  const createLabOrder = useCreateLabOrder();
+  const completeConsultation = useCompleteConsultation();
+  const labTestsQuery = useLabTestsCatalog();
+  const visit = visitQuery.data?.data;
+  const consultationId = visit?.consultation?.id || '';
+  const consultationQuery = useConsultation(consultationId);
+  const consultation = consultationQuery.data?.data;
+
+  const [diagnosis, setDiagnosis] = useState('');
+  const [diagnosisCode, setDiagnosisCode] = useState('');
+  const [clinicalNotes, setClinicalNotes] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [generalAdvice, setGeneralAdvice] = useState('');
+  const [medications, setMedications] = useState<MedicationDraft[]>([createMedicationDraft()]);
+  const [labOrders, setLabOrders] = useState<LabOrderDraft[]>([]);
+  const [submissionError, setSubmissionError] = useState('');
+
+  useEffect(() => {
+    if (!consultation) return;
+    setDiagnosis(consultation.diagnosis || '');
+    setDiagnosisCode(consultation.diagnosisCode || '');
+    setClinicalNotes(consultation.clinicalNotes || '');
+    setFollowUpDate(consultation.followUpDate ? consultation.followUpDate.slice(0, 10) : '');
+    if (consultation.prescriptions.length > 0) {
+      setMedications(
+        consultation.prescriptions.map((item) => ({
+          localId: item.id,
+          drugName: item.drugName,
+          dosage: item.dosage,
+          frequency: item.frequency,
+          durationDays: item.durationDays,
+          route: item.route || '',
+          instructions: item.instructions || '',
+        }))
+      );
+    }
+  }, [consultation]);
+
+  const patient = visit?.patient;
+  const labTests = labTestsQuery.data?.data || [];
+  const isBusy =
+    createConsultation.isPending ||
+    updateConsultation.isPending ||
+    createPrescriptions.isPending ||
+    createLabOrder.isPending ||
+    completeConsultation.isPending ||
+    updateVisitStatus.isPending;
+
+  const latestVitals = useMemo(() => {
+    const vitals = visit?.vitals;
+    return vitals && typeof vitals === 'object' ? Object.entries(vitals) : [];
+  }, [visit?.vitals]);
+
+  if (!id) {
+    return (
+      <EmptyState
+        title="No visit selected"
+        description="Open a patient from today's queue to begin a live consultation workflow."
+        action={
+          <Button variant="primary" onClick={() => navigate('/visits/today')}>
+            Go to today's queue
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (visitQuery.isLoading) {
+    return <LoadingSkeleton rows={10} />;
+  }
+
+  if (visitQuery.isError || !visit || !patient) {
+    return (
+      <EmptyState
+        title="Consultation unavailable"
+        description={(visitQuery.error as { message?: string })?.message || 'The visit could not be loaded for consultation.'}
+        action={
+          <Button variant="primary" onClick={() => visitQuery.refetch()}>
+            Retry
+          </Button>
+        }
+      />
+    );
+  }
+
+  const ensureVisitInConsultation = async () => {
+    if (visit.status === 'WAITING') {
+      const response = await updateVisitStatus.mutateAsync({ id: visit.id, status: 'IN_CONSULTATION' });
+      queryClient.setQueryData(visitKeys.detail(visit.id), response);
+      return response.data;
+    }
+    return visit;
+  };
+
+  const ensureConsultation = async () => {
+    if (consultation) return consultation;
+    const response = await createConsultation.mutateAsync({
+      visitId: visit.id,
+      diagnosis,
+      diagnosisCode: diagnosisCode || undefined,
+      clinicalNotes,
+      followUpDate: followUpDate || undefined,
+    });
+    queryClient.invalidateQueries({ queryKey: visitKeys.detail(visit.id) });
+    return response.data;
+  };
+
+  const saveDraft = async () => {
+    setSubmissionError('');
+    try {
+      await ensureVisitInConsultation();
+      const ensured = await ensureConsultation();
+      await updateConsultation.mutateAsync({
+        id: ensured.id,
+        payload: {
+          diagnosis,
+          diagnosisCode: diagnosisCode || undefined,
+          clinicalNotes: [clinicalNotes, generalAdvice].filter(Boolean).join('\n\n'),
+          followUpDate: followUpDate || undefined,
+        },
+      });
+    } catch (error) {
+      setSubmissionError((error as { message?: string })?.message || 'Could not save consultation draft');
+    }
+  };
+
+  const completeFlow = async () => {
+    setSubmissionError('');
+
+    try {
+      const activeVisit = await ensureVisitInConsultation();
+      const ensured = await ensureConsultation();
+
+      await updateConsultation.mutateAsync({
+        id: ensured.id,
+        payload: {
+          diagnosis,
+          diagnosisCode: diagnosisCode || undefined,
+          clinicalNotes: [clinicalNotes, generalAdvice].filter(Boolean).join('\n\n'),
+          followUpDate: followUpDate || undefined,
+        },
+      });
+
+      const validMeds = medications.filter(
+        (item) => item.drugName.trim() && item.dosage.trim() && item.frequency.trim() && item.durationDays > 0
+      );
+      if (validMeds.length > 0) {
+        await createPrescriptions.mutateAsync({
+          consultationId: ensured.id,
+          prescriptions: validMeds.map(({ localId, ...item }) => item),
+        });
+      }
+
+      const validOrders = labOrders.filter((item) => item.testCatalogId);
+      for (const order of validOrders) {
+        await createLabOrder.mutateAsync({
+          visitId: activeVisit.id,
+          consultationId: ensured.id,
+          patientId: activeVisit.patientId,
+          testCatalogId: order.testCatalogId,
+          priority: order.priority,
+          notes: order.notes || undefined,
+        });
+      }
+
+      await completeConsultation.mutateAsync(ensured.id);
+      queryClient.invalidateQueries({ queryKey: visitKeys.detail(visit.id) });
+      navigate(`/patients/${patient.id}`);
+    } catch (error) {
+      setSubmissionError((error as { message?: string })?.message || 'Could not complete consultation');
+    }
+  };
+
   return (
     <div className="pb-24">
       <PageHeader
-        title="Consultation — Ramesh Kumar"
-        breadcrumbs={[
-        {
-          label: 'OPD'
-        },
-        {
-          label: 'Consultations'
-        },
-        {
-          label: 'Active'
-        }]
-        }
+        title={`Consultation — ${patient.firstName} ${patient.lastName}`}
+        breadcrumbs={[{ label: 'OPD' }, { label: "Today's queue", href: '/visits/today' }, { label: 'Consultation' }]}
         meta={
-        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-ink-secondary">
             <MonoNumber size="sm" weight="medium">
-              P-100482
+              {patient.uhid}
             </MonoNumber>
-            <span className="text-ink-tertiary">·</span>
-            <span className="text-ink-secondary">54 · Male</span>
-            <span className="text-ink-tertiary">·</span>
-            <MonoNumber size="sm" className="text-ink-secondary">
-              Token T-014
-            </MonoNumber>
-            <StatusBadge tone="info" dot>
-              In consultation
-            </StatusBadge>
-            <StatusBadge tone="danger" size="sm">
-              Allergy: Penicillin
-            </StatusBadge>
+            <span>·</span>
+            <span>{visit.doctor?.name || 'Doctor unassigned'}</span>
+            <span>·</span>
+            <MonoNumber size="sm">Token {visit.tokenNumber}</MonoNumber>
+            <AutoStatusBadge status={visit.status.replace(/_/g, ' ').toLowerCase()} />
           </div>
         }
         actions={
-        <>
-            <Button
-            variant="ghost"
-            icon={<SparklesIcon />}
-            onClick={() => setShowAI((s) => !s)}
-            className="text-accent">
-            
-              {showAI ? 'Hide AI' : 'Show AI'}
-            </Button>
-            <Button variant="secondary" icon={<SaveIcon />}>
-              Save draft
-            </Button>
-          </>
-        } />
-      
+          <Button variant="secondary" onClick={() => navigate(`/patients/${patient.id}`)}>
+            Open patient profile
+          </Button>
+        }
+      />
 
-      <div
-        className={cn(
-          'grid gap-4',
-          showAI ?
-          'grid-cols-1 xl:grid-cols-[260px_1fr_320px]' :
-          'grid-cols-1 xl:grid-cols-[260px_1fr]'
-        )}>
-        
-        {/* Left: Patient summary */}
+      <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-4">
         <div className="space-y-4">
-          <Card padded>
+          <Card>
             <SectionTitle title="Patient summary" />
             <div className="space-y-3 text-sm">
               <div>
-                <p className="text-xs text-ink-tertiary mb-1">Allergies</p>
-                <StatusBadge tone="danger" dot size="sm">
-                  Penicillin
-                </StatusBadge>
+                <p className="text-xs text-ink-tertiary mb-1">Chief complaint</p>
+                <p>{visit.chiefComplaint || 'No complaint recorded at check-in.'}</p>
               </div>
               <div>
-                <p className="text-xs text-ink-tertiary mb-1">
-                  Active conditions
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  <StatusBadge tone="neutral" size="sm">
-                    Hypertension
-                  </StatusBadge>
-                  <StatusBadge tone="neutral" size="sm">
-                    T2 Diabetes
-                  </StatusBadge>
-                </div>
+                <p className="text-xs text-ink-tertiary mb-1">Contact</p>
+                <p>{patient.phone || patient.email || 'No contact details recorded'}</p>
               </div>
               <div>
-                <p className="text-xs text-ink-tertiary mb-1">Last vitals</p>
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  <div>
-                    <span className="text-ink-tertiary">BP</span>{' '}
-                    <MonoNumber size="xs" className="text-warning ml-1">
-                      138/86
-                    </MonoNumber>
-                  </div>
-                  <div>
-                    <span className="text-ink-tertiary">Pulse</span>{' '}
-                    <MonoNumber size="xs" className="ml-1">
-                      78
-                    </MonoNumber>
-                  </div>
-                  <div>
-                    <span className="text-ink-tertiary">SpO₂</span>{' '}
-                    <MonoNumber size="xs" className="ml-1">
-                      97%
-                    </MonoNumber>
-                  </div>
-                  <div>
-                    <span className="text-ink-tertiary">FBS</span>{' '}
-                    <MonoNumber size="xs" className="text-warning ml-1">
-                      142
-                    </MonoNumber>
-                  </div>
-                </div>
+                <p className="text-xs text-ink-tertiary mb-1">Checked in</p>
+                <p>{formatDateTime(visit.checkedInAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-ink-tertiary mb-1">
-                  Active medications
-                </p>
-                <ul className="space-y-1 text-xs">
-                  <li>• Metformin 500mg BD</li>
-                  <li>• Telmisartan 40mg OD</li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs text-ink-tertiary mb-1">Last visit</p>
-                <p className="text-xs">
-                  <MonoNumber size="xs">2026-04-21</MonoNumber> · Diabetic
-                  review
-                </p>
+                <p className="text-xs text-ink-tertiary mb-1">Latest vitals</p>
+                {latestVitals.length === 0 ? (
+                  <p className="text-ink-secondary">No vitals captured yet.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {latestVitals.map(([key, value]) => (
+                      <div key={key} className="rounded-lg bg-subtle/60 dark:bg-subtle-dark/60 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-ink-tertiary">{key}</p>
+                        <p className="text-sm font-medium">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          </Card>
-
-          <Card padded>
-            <p className="text-xs text-ink-tertiary mb-2">Jump to section</p>
-            <nav className="space-y-0.5">
-              {sections.map((s) =>
-              <button
-                key={s.id}
-                onClick={() => setSection(s.id)}
-                className={cn(
-                  'w-full text-left px-2 py-1.5 text-sm rounded-md',
-                  section === s.id ?
-                  'bg-accent-soft text-accent font-medium' :
-                  'text-ink-secondary hover:bg-subtle dark:hover:bg-subtle-dark'
-                )}>
-                
-                  {s.label}
-                </button>
-              )}
-            </nav>
           </Card>
         </div>
 
-        {/* Middle: Main workspace */}
-        <div className="space-y-4 min-w-0">
+        <div className="space-y-4">
           <Card>
-            <SectionTitle
-              title="Chief complaint"
-              description="What brought the patient in today" />
-            
-            <Textarea
-              placeholder="e.g. Headache for 3 days, dizziness on standing…"
-              rows={3} />
-            
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {[
-              'Fever',
-              'Cough',
-              'Headache',
-              'BP review',
-              'Diabetic follow-up'].
-              map((t) =>
-              <button
-                key={t}
-                className="px-2.5 py-1 text-xs rounded-full bg-subtle dark:bg-subtle-dark text-ink-secondary hover:bg-line">
-                
-                  + {t}
-                </button>
-              )}
+            <SectionTitle title="Assessment" description="Document the clinical decision for this visit." />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Textarea
+                label="Chief complaint / history"
+                rows={3}
+                value={clinicalNotes}
+                onChange={(event) => setClinicalNotes(event.target.value)}
+                className="md:col-span-2"
+              />
+              <Input label="Diagnosis" value={diagnosis} onChange={(event) => setDiagnosis(event.target.value)} />
+              <Input
+                label="ICD / diagnosis code"
+                value={diagnosisCode}
+                onChange={(event) => setDiagnosisCode(event.target.value)}
+              />
+              <Input
+                label="Follow-up date"
+                type="date"
+                value={followUpDate}
+                onChange={(event) => setFollowUpDate(event.target.value)}
+              />
+              <div />
+              <Textarea
+                label="Advice for patient"
+                rows={3}
+                value={generalAdvice}
+                onChange={(event) => setGeneralAdvice(event.target.value)}
+                className="md:col-span-2"
+              />
             </div>
           </Card>
 
           <Card>
             <SectionTitle
-              title="Vitals"
-              description="Recorded by nursing staff"
+              title="Prescriptions"
+              description="Add one or more medications to be created in bulk."
               action={
-              <Button size="sm" variant="ghost" icon={<PlusIcon />}>
-                  Add measurement
+                <Button size="sm" variant="secondary" icon={<PlusIcon />} onClick={() => setMedications((items) => [...items, createMedicationDraft()])}>
+                  Add medicine
                 </Button>
-              } />
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-              {[
-              {
-                label: 'BP',
-                value: '138/86',
-                unit: 'mmHg',
-                abnormal: true
-              },
-              {
-                label: 'Pulse',
-                value: '78',
-                unit: 'bpm'
-              },
-              {
-                label: 'Temp',
-                value: '98.4',
-                unit: '°F'
-              },
-              {
-                label: 'SpO₂',
-                value: '97',
-                unit: '%'
-              },
-              {
-                label: 'Weight',
-                value: '72.5',
-                unit: 'kg'
-              },
-              {
-                label: 'Height',
-                value: '168',
-                unit: 'cm'
-              },
-              {
-                label: 'BMI',
-                value: '25.7',
-                unit: 'kg/m²'
-              },
-              {
-                label: 'FBS',
-                value: '142',
-                unit: 'mg/dL',
-                abnormal: true
-              }].
-              map((v) =>
-              <div
-                key={v.label}
-                className={cn(
-                  'p-2.5 rounded-lg border',
-                  v.abnormal ?
-                  'bg-warning-soft border-warning/20' :
-                  'bg-subtle/50 dark:bg-subtle-dark/50 border-transparent'
-                )}>
-                
-                  <div className="text-[10px] uppercase tracking-wider text-ink-tertiary">
-                    {v.label}
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <MonoNumber
-                    weight="semibold"
-                    className={v.abnormal ? 'text-warning' : ''}>
-                    
-                      {v.value}
-                    </MonoNumber>
-                    <span className="text-[10px] text-ink-tertiary">
-                      {v.unit}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <SectionTitle title="Diagnosis" />
-            <Input placeholder="Search ICD-10 codes…" icon={<SearchIcon />} />
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              <StatusBadge tone="info" size="md">
-                I10 — Essential hypertension{' '}
-                <button className="ml-1 -mr-1">
-                  <XIcon className="w-3 h-3" />
-                </button>
-              </StatusBadge>
-              <StatusBadge tone="info" size="md">
-                E11.9 — T2 Diabetes{' '}
-                <button className="ml-1 -mr-1">
-                  <XIcon className="w-3 h-3" />
-                </button>
-              </StatusBadge>
-            </div>
-          </Card>
-
-          <Card>
-            <SectionTitle
-              title="Prescription"
-              description={`${meds.length} medicines`}
-              action={
-              <div className="flex items-center gap-2">
-                  <Button size="sm" variant="ghost" icon={<FileTextIcon />}>
-                    Templates
-                  </Button>
-                  <Button size="sm" variant="secondary" icon={<PlusIcon />}>
-                    Add medicine
-                  </Button>
-                </div>
-              } />
-            
-            <div className="overflow-x-auto -mx-5 px-5">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line dark:border-line-dark">
-                    {[
-                    'Medicine',
-                    'Dose',
-                    'Frequency',
-                    'Duration',
-                    'Instructions',
-                    'Qty',
-                    ''].
-                    map((h) =>
-                    <th
-                      key={h}
-                      className="py-2 px-2 text-left text-xs font-medium text-ink-tertiary uppercase tracking-wide">
-                      
-                        {h}
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {meds.map((m, i) =>
-                  <tr
-                    key={i}
-                    className="border-b border-line dark:border-line-dark last:border-0">
-                    
-                      <td className="py-2.5 px-2 font-medium">{m.name}</td>
-                      <td className="py-2.5 px-2">
-                        <MonoNumber size="sm">{m.dose}</MonoNumber>
-                      </td>
-                      <td className="py-2.5 px-2">
-                        <MonoNumber size="sm">{m.freq}</MonoNumber>
-                      </td>
-                      <td className="py-2.5 px-2">
-                        <MonoNumber size="sm">{m.dur}</MonoNumber>
-                      </td>
-                      <td className="py-2.5 px-2 text-xs text-ink-secondary">
-                        {m.food}
-                      </td>
-                      <td className="py-2.5 px-2">
-                        <MonoNumber size="sm">{m.qty}</MonoNumber>
-                      </td>
-                      <td className="py-2.5 px-2 text-right">
-                        <IconButton
-                        size="sm"
+              }
+            />
+            <div className="space-y-3">
+              {medications.map((medication) => (
+                <div key={medication.localId} className="rounded-xl border border-line dark:border-line-dark p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                    <Input
+                      label="Drug"
+                      value={medication.drugName}
+                      onChange={(event) =>
+                        setMedications((items) =>
+                          items.map((item) =>
+                            item.localId === medication.localId ? { ...item, drugName: event.target.value } : item
+                          )
+                        )
+                      }
+                      className="md:col-span-2"
+                    />
+                    <Input
+                      label="Dosage"
+                      value={medication.dosage}
+                      onChange={(event) =>
+                        setMedications((items) =>
+                          items.map((item) =>
+                            item.localId === medication.localId ? { ...item, dosage: event.target.value } : item
+                          )
+                        )
+                      }
+                    />
+                    <Input
+                      label="Frequency"
+                      value={medication.frequency}
+                      onChange={(event) =>
+                        setMedications((items) =>
+                          items.map((item) =>
+                            item.localId === medication.localId ? { ...item, frequency: event.target.value } : item
+                          )
+                        )
+                      }
+                    />
+                    <Input
+                      label="Duration (days)"
+                      type="number"
+                      min="1"
+                      value={String(medication.durationDays)}
+                      onChange={(event) =>
+                        setMedications((items) =>
+                          items.map((item) =>
+                            item.localId === medication.localId
+                              ? { ...item, durationDays: Number(event.target.value) || 1 }
+                              : item
+                          )
+                        )
+                      }
+                    />
+                    <div className="flex items-end">
+                      <Button
                         variant="ghost"
+                        size="sm"
+                        icon={<Trash2Icon />}
                         onClick={() =>
-                        setMeds(meds.filter((_, x) => x !== i))
+                          setMedications((items) => (items.length > 1 ? items.filter((item) => item.localId !== medication.localId) : items))
                         }>
-                        
-                          <XIcon />
-                        </IconButton>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                        Remove
+                      </Button>
+                    </div>
+                    <Input
+                      label="Route"
+                      value={medication.route || ''}
+                      onChange={(event) =>
+                        setMedications((items) =>
+                          items.map((item) =>
+                            item.localId === medication.localId ? { ...item, route: event.target.value } : item
+                          )
+                        )
+                      }
+                    />
+                    <Input
+                      label="Instructions"
+                      value={medication.instructions || ''}
+                      onChange={(event) =>
+                        setMedications((items) =>
+                          items.map((item) =>
+                            item.localId === medication.localId ? { ...item, instructions: event.target.value } : item
+                          )
+                        )
+                      }
+                      className="md:col-span-3"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </Card>
 
           <Card>
             <SectionTitle
               title="Lab orders"
+              description="Choose tests from the live catalog and create them after consultation save."
               action={
-              <Button size="sm" variant="secondary" icon={<PlusIcon />}>
+                <Button size="sm" variant="secondary" icon={<FlaskConicalIcon />} onClick={() => setLabOrders((items) => [...items, createLabOrderDraft()])}>
                   Add test
                 </Button>
-              } />
-            
-            <div className="flex flex-wrap gap-1.5">
-              <StatusBadge tone="info">HbA1c</StatusBadge>
-              <StatusBadge tone="info">Lipid Profile</StatusBadge>
-              <StatusBadge tone="info">Serum Creatinine</StatusBadge>
-            </div>
-          </Card>
-
-          <Card>
-            <SectionTitle title="Advice & Follow-up" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Textarea
-                label="General advice"
-                rows={3}
-                placeholder="Diet, lifestyle, red flags…" />
-              
-              <div className="space-y-3">
-                <Input label="Follow-up after" placeholder="14 days" />
-                <label className="flex items-center gap-2 text-xs text-ink-secondary">
-                  <input
-                    type="checkbox"
-                    className="rounded text-accent"
-                    defaultChecked />
-                  
-                  Send reminder via WhatsApp 1 day before
-                </label>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Right: AI panel */}
-        {showAI &&
-        <div className="space-y-4">
-            <Card padded className="border-accent/30">
-              <SectionTitle
-              title={
-
-              <span className="flex items-center gap-1.5">
-                      <SparklesIcon className="w-3.5 h-3.5 text-accent" />
-                      AI clinical draft
-                    </span> as
-              any
               }
-              description="Generated from voice + EHR context" />
-            
-              <div className="bg-subtle/60 dark:bg-subtle-dark/60 rounded-lg p-3 text-xs leading-relaxed">
-                <p className="text-ink-primary dark:text-ink-primary-dark">
-                  <span className="font-semibold">S:</span> 54M with known HTN,
-                  T2DM. Reports increased fatigue past 2 weeks, occasional
-                  dizziness on standing. No chest pain, no SOB.
-                </p>
-                <p className="mt-2 text-ink-primary dark:text-ink-primary-dark">
-                  <span className="font-semibold">O:</span> BP 138/86
-                  (elevated). FBS 142 (elevated). BMI 25.7.
-                </p>
-                <p className="mt-2 text-ink-primary dark:text-ink-primary-dark">
-                  <span className="font-semibold">A:</span> Suboptimal control
-                  of HTN and T2DM.
-                </p>
-                <p className="mt-2 text-ink-primary dark:text-ink-primary-dark">
-                  <span className="font-semibold">P:</span> Continue current
-                  regime, order HbA1c & lipids, review in 2 weeks.
-                </p>
+            />
+            {labTestsQuery.isLoading ? (
+              <LoadingSkeleton rows={3} />
+            ) : labOrders.length === 0 ? (
+              <EmptyState compact title="No lab orders added" description="Add tests only when clinically needed." />
+            ) : (
+              <div className="space-y-3">
+                {labOrders.map((order) => (
+                  <div key={order.localId} className="rounded-xl border border-line dark:border-line-dark p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <Select
+                        label="Test"
+                        value={order.testCatalogId}
+                        onChange={(event) =>
+                          setLabOrders((items) =>
+                            items.map((item) =>
+                              item.localId === order.localId ? { ...item, testCatalogId: event.target.value } : item
+                            )
+                          )
+                        }
+                        className="md:col-span-2">
+                        <option value="">Select a test</option>
+                        {labTests.map((test) => (
+                          <option key={test.id} value={test.id}>
+                            {test.name} ({test.code})
+                          </option>
+                        ))}
+                      </Select>
+                      <Select
+                        label="Priority"
+                        value={order.priority}
+                        onChange={(event) =>
+                          setLabOrders((items) =>
+                            items.map((item) =>
+                              item.localId === order.localId
+                                ? { ...item, priority: event.target.value as LabOrderDraft['priority'] }
+                                : item
+                            )
+                          )
+                        }>
+                        <option value="ROUTINE">Routine</option>
+                        <option value="URGENT">Urgent</option>
+                        <option value="STAT">Stat</option>
+                      </Select>
+                      <div className="flex items-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Trash2Icon />}
+                          onClick={() => setLabOrders((items) => items.filter((item) => item.localId !== order.localId))}>
+                          Remove
+                        </Button>
+                      </div>
+                      <Textarea
+                        label="Order notes"
+                        rows={2}
+                        value={order.notes}
+                        onChange={(event) =>
+                          setLabOrders((items) =>
+                            items.map((item) =>
+                              item.localId === order.localId ? { ...item, notes: event.target.value } : item
+                            )
+                          )
+                        }
+                        className="md:col-span-4"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <StatusBadge tone="warning" size="sm">
-                  Human approval required
+            )}
+          </Card>
+
+          {submissionError ? (
+            <Card className="border-danger/30 bg-danger-soft/40">
+              <p className="text-sm text-danger">{submissionError}</p>
+            </Card>
+          ) : null}
+
+          {consultation ? (
+            <Card>
+              <SectionTitle title="Existing consultation data" description="Current persisted consultation and related records." />
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge tone="info">Consultation ID: {consultation.id}</StatusBadge>
+                <StatusBadge tone={consultation.status === 'COMPLETED' ? 'success' : 'warning'}>
+                  {consultation.status}
                 </StatusBadge>
-                <div className="flex items-center gap-1">
-                  <IconButton size="sm" variant="ghost">
-                    <XIcon />
-                  </IconButton>
-                  <Button size="sm" variant="primary" icon={<CheckIcon />}>
-                    Apply
-                  </Button>
-                </div>
+                <StatusBadge tone="neutral">Prescriptions: {consultation.prescriptions.length}</StatusBadge>
+                <StatusBadge tone="neutral">Lab orders: {consultation.labOrders.length}</StatusBadge>
               </div>
             </Card>
-
-            <Card padded>
-              <SectionTitle title="Quick AI actions" />
-              <div className="space-y-1.5">
-                {[
-              'Summarize patient history',
-              'Suggest follow-up questions',
-              'Translate prescription to Malayalam',
-              'Convert advice to patient-friendly text',
-              'Draft WhatsApp follow-up message'].
-              map((a) =>
-              <button
-                key={a}
-                className="w-full text-left px-3 py-2 text-xs rounded-lg bg-subtle/60 dark:bg-subtle-dark/60 hover:bg-subtle dark:hover:bg-subtle-dark text-ink-secondary hover:text-ink-primary">
-                
-                    <SparklesIcon className="w-3 h-3 inline mr-1.5 text-accent" />
-                    {a}
-                  </button>
-              )}
-              </div>
-            </Card>
-
-            <Card padded>
-              <SectionTitle title="Drug interaction check" />
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-success-soft">
-                <CheckIcon className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
-                <p className="text-xs text-ink-primary">
-                  No major interactions found between Metformin and Telmisartan.
-                  Safe to co-prescribe.
-                </p>
-              </div>
-            </Card>
-          </div>
-        }
+          ) : null}
+        </div>
       </div>
 
-      {/* Sticky footer */}
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-surface/95 dark:bg-surface-dark/95 backdrop-blur border-t border-line dark:border-line-dark px-4 lg:px-6 py-3 z-10">
-        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-          <div className="hidden sm:flex items-center gap-2 text-xs text-ink-tertiary">
-            <StatusBadge tone="success" dot size="sm">
-              Auto-saved
-            </StatusBadge>
-            <span>
-              Last saved <MonoNumber size="xs">12:42</MonoNumber>
-            </span>
+        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-xs text-ink-tertiary">
+            Visit status: <AutoStatusBadge status={visit.status.replace(/_/g, ' ').toLowerCase()} />
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap sm:justify-end [&>*]:shrink-0">
-            <Button variant="ghost">Save draft</Button>
-            <Button variant="secondary" icon={<PrinterIcon />}>
-              Print Rx
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <Button variant="secondary" onClick={saveDraft} disabled={isBusy}>
+              Save draft
             </Button>
-            <Button variant="secondary" icon={<SendIcon />}>
-              Send to patient
-            </Button>
-            <Button variant="primary" icon={<CheckIcon />}>
-              Complete consultation
+            <Button variant="primary" icon={<CheckIcon />} onClick={completeFlow} disabled={isBusy}>
+              {isBusy ? 'Completing...' : 'Complete consultation'}
             </Button>
           </div>
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }

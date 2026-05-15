@@ -10,15 +10,17 @@ const allowedOrigins = env.CORS_ORIGIN;
 
 app.use(
   cors({
-    origin: allowedOrigins?.length ? allowedOrigins : '*',
+    origin: allowedOrigins?.length ? allowedOrigins : true,
+    credentials: true,
   })
 );
 app.use(express.json());
 app.use(httpLogger);
 
+app.use('/api', apiRoutes);
 app.use('/api/v1', apiRoutes);
 
-app.get('/api/v1/health', async (req, res) => {
+app.get(['/api/health', '/api/v1/health'], async (req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),

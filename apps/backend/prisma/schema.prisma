@@ -8,36 +8,327 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      Role      @default(RECEPTIONIST)
-  isActive  Boolean   @default(true)
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(RECEPTIONIST)
+  departmentId String?   @map("department_id") @db.Uuid
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // Soft delete
+  department         Department?   @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  headedDepartments  Department[]  @relation("DepartmentHead")
+  createdPatients    Patient[]     @relation("PatientCreator")
+  createdVisits      Visit[]       @relation("VisitCreator")
+  doctorVisits       Visit[]       @relation("VisitDoctor")
+  consultations      Consultation[] @relation("ConsultationDoctor")
+  labOrders          LabOrder[]    @relation("LabOrderCreator")
+  labResults         LabResult[]   @relation("LabResultTechnician")
+  approvedLabResults LabResult[]   @relation("LabResultApprover")
+  auditLogs          AuditLog[]    @relation("AuditActor")
+  notifications      Notification[]
+
+  @@index([departmentId])
+  @@map("users")
+}
+
+model Department {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @unique
+  headDoctorId String?  @map("head_doctor_id") @db.Uuid
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  headDoctor    User?          @relation("DepartmentHead", fields: [headDoctorId], references: [id])
+  members       User[]         @relation("DepartmentMembers")
+  patients      Patient[]
+  visits        Visit[]
+  consultations Consultation[]
+
+  @@index([headDoctorId])
+  @@map("departments")
 }
 
 model Patient {
-  id        String    @id @default(uuid())
-  firstName String
-  lastName  String
-  dob       DateTime
-  contact   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // Soft delete
+  id               String    @id @default(uuid()) @db.Uuid
+  uhid             String    @unique @db.VarChar(20)
+  firstName        String    @map("first_name")
+  lastName         String    @map("last_name")
+  dob              DateTime  @db.Date
+  gender           Gender
+  bloodGroup       String?   @map("blood_group")
+  phone            String?
+  email            String?
+  address          Json?
+  emergencyContact Json?     @map("emergency_contact")
+  insuranceInfo    Json?     @map("insurance_info")
+  departmentId     String?   @map("department_id") @db.Uuid
+  createdBy        String?   @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+
+  department    Department?    @relation(fields: [departmentId], references: [id])
+  creator       User?          @relation("PatientCreator", fields: [createdBy], references: [id])
+  visits        Visit[]
+  consultations Consultation[]
+  prescriptions Prescription[]
+  labOrders     LabOrder[]
+
+  @@index([uhid])
+  @@index([createdAt])
+  @@index([phone])
+  @@index([departmentId])
+  @@map("patients")
+}
+
+model Visit {
+  id             String      @id @default(uuid()) @db.Uuid
+  patientId      String      @map("patient_id") @db.Uuid
+  visitType      VisitType   @map("visit_type")
+  doctorId       String      @map("doctor_id") @db.Uuid
+  departmentId   String      @map("department_id") @db.Uuid
+  tokenNumber    Int         @map("token_number")
+  status         VisitStatus @default(WAITING)
+  chiefComplaint String?     @map("chief_complaint")
+  vitals         Json?
+  checkedInAt    DateTime    @default(now()) @map("checked_in_at") @db.Timestamptz
+  checkedOutAt   DateTime?   @map("checked_out_at") @db.Timestamptz
+  createdBy      String?     @map("created_by") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  doctor       User          @relation("VisitDoctor", fields: [doctorId], references: [id])
+  department   Department    @relation(fields: [departmentId], references: [id])
+  creator      User?         @relation("VisitCreator", fields: [createdBy], references: [id])
+  consultation Consultation?
+  labOrders    LabOrder[]
+
+  @@index([patientId, status, createdAt])
+  @@index([doctorId, status, checkedInAt])
+  @@index([departmentId])
+  @@map("visits")
+}
+
+model Consultation {
+  id             String             @id @default(uuid()) @db.Uuid
+  visitId        String             @unique @map("visit_id") @db.Uuid
+  patientId      String             @map("patient_id") @db.Uuid
+  doctorId       String             @map("doctor_id") @db.Uuid
+  departmentId   String?            @map("department_id") @db.Uuid
+  diagnosis      String?
+  diagnosisCode  String?            @map("diagnosis_code") @db.VarChar(32)
+  clinicalNotes  String?            @map("clinical_notes")
+  followUpDate   DateTime?          @map("follow_up_date") @db.Date
+  status         ConsultationStatus @default(DRAFT)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  visit         Visit          @relation(fields: [visitId], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  doctor        User           @relation("ConsultationDoctor", fields: [doctorId], references: [id])
+  department    Department?    @relation(fields: [departmentId], references: [id])
+  prescriptions Prescription[]
+  labOrders     LabOrder[]
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, status])
+  @@map("consultations")
+}
+
+model Prescription {
+  id             String   @id @default(uuid()) @db.Uuid
+  consultationId String   @map("consultation_id") @db.Uuid
+  patientId      String   @map("patient_id") @db.Uuid
+  drugName       String   @map("drug_name")
+  dosage         String
+  frequency      String
+  durationDays   Int      @map("duration_days")
+  route          String?
+  instructions   String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+
+  @@index([consultationId])
+  @@index([patientId, isActive])
+  @@map("prescriptions")
+}
+
+model LabTestCatalog {
+  id                 String     @id @default(uuid()) @db.Uuid
+  name               String
+  code               String     @unique @db.VarChar(64)
+  category           String?
+  specimenType       String?    @map("specimen_type")
+  referenceRangeLow  Decimal?   @map("reference_range_low") @db.Decimal(10, 2)
+  referenceRangeHigh Decimal?   @map("reference_range_high") @db.Decimal(10, 2)
+  unit               String?
+  turnaroundHours    Int?       @map("turnaround_hours")
+  isActive           Boolean    @default(true) @map("is_active")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  labOrders LabOrder[]
+
+  @@index([isActive])
+  @@map("lab_tests_catalog")
+}
+
+model LabOrder {
+  id             String         @id @default(uuid()) @db.Uuid
+  visitId        String?        @map("visit_id") @db.Uuid
+  consultationId String?        @map("consultation_id") @db.Uuid
+  patientId      String         @map("patient_id") @db.Uuid
+  orderedBy      String         @map("ordered_by") @db.Uuid
+  testCatalogId  String         @map("test_catalog_id") @db.Uuid
+  priority       LabPriority    @default(ROUTINE)
+  status         LabOrderStatus @default(PENDING)
+  notes          String?
+  orderedAt      DateTime       @default(now()) @map("ordered_at") @db.Timestamptz
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  visit        Visit?         @relation(fields: [visitId], references: [id])
+  consultation Consultation?  @relation(fields: [consultationId], references: [id])
+  patient      Patient        @relation(fields: [patientId], references: [id])
+  orderedByUser User          @relation("LabOrderCreator", fields: [orderedBy], references: [id])
+  testCatalog  LabTestCatalog @relation(fields: [testCatalogId], references: [id])
+  result       LabResult?
+
+  @@index([status, priority, orderedAt])
+  @@index([patientId, orderedAt])
+  @@index([visitId])
+  @@index([consultationId])
+  @@map("lab_orders")
+}
+
+model LabResult {
+  id             String    @id @default(uuid()) @db.Uuid
+  labOrderId     String    @unique @map("lab_order_id") @db.Uuid
+  resultValue    String    @map("result_value")
+  resultUnit     String?   @map("result_unit")
+  referenceRange String?   @map("reference_range")
+  isAbnormal     Boolean   @default(false) @map("is_abnormal")
+  technicianId   String    @map("technician_id") @db.Uuid
+  enteredAt      DateTime  @default(now()) @map("entered_at") @db.Timestamptz
+  approvedBy     String?   @map("approved_by") @db.Uuid
+  approvedAt     DateTime? @map("approved_at") @db.Timestamptz
+  reportFileUrl  String?   @map("report_file_url")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  labOrder   LabOrder @relation(fields: [labOrderId], references: [id])
+  technician User     @relation("LabResultTechnician", fields: [technicianId], references: [id])
+  approver   User?    @relation("LabResultApprover", fields: [approvedBy], references: [id])
+
+  @@index([technicianId, enteredAt])
+  @@index([approvedBy, approvedAt])
+  @@map("lab_results")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(64)
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.Inet
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([entityType, createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  type       String   @db.VarChar(64)
+  title      String
+  message    String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }
 
 enum Role {
-  ADMIN
-  DOCTOR
-  RECEPTIONIST
-  LAB_TECHNICIAN
-  NURSE
-  PHARMACIST
-  ACCOUNTANT
-  STAFF
+  ADMIN          @map("admin")
+  DOCTOR         @map("doctor")
+  LAB_TECHNICIAN @map("lab_technician")
+  RECEPTIONIST   @map("receptionist")
+  NURSE          @map("nurse")
+  PHARMACIST     @map("pharmacist")
+  ACCOUNTANT     @map("accountant")
+  STAFF          @map("staff")
+
+  @@map("role")
+}
+
+enum Gender {
+  MALE   @map("male")
+  FEMALE @map("female")
+  OTHER  @map("other")
+
+  @@map("gender")
+}
+
+enum VisitType {
+  OPD
+  IPD
+  EMERGENCY @map("Emergency")
+
+  @@map("visit_type")
+}
+
+enum VisitStatus {
+  WAITING         @map("waiting")
+  IN_CONSULTATION @map("in_consultation")
+  COMPLETED       @map("completed")
+  CANCELLED       @map("cancelled")
+
+  @@map("visit_status")
+}
+
+enum ConsultationStatus {
+  DRAFT     @map("draft")
+  COMPLETED @map("completed")
+
+  @@map("consultation_status")
+}
+
+enum LabPriority {
+  ROUTINE @map("routine")
+  URGENT  @map("urgent")
+  STAT    @map("stat")
+
+  @@map("lab_priority")
+}
+
+enum LabOrderStatus {
+  PENDING          @map("pending")
+  SAMPLE_COLLECTED @map("sample_collected")
+  PROCESSING       @map("processing")
+  RESULTED         @map("resulted")
+  APPROVED         @map("approved")
+  CANCELLED        @map("cancelled")
+
+  @@map("lab_order_status")
 }

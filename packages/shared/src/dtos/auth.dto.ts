@@ -25,4 +25,5 @@ export interface AuthResponseDto {
     role: Role;
   };
   accessToken: string;
+  refreshToken?: string;
 }

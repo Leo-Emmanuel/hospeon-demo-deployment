@@ -2,7 +2,7 @@ import { authRepository } from './auth.repository';
 import { RegisterDto, LoginDto, AuthResponseDto, Role } from '@hospeon/shared';
 import { AppError } from '../../utils/app-error';
 import { hashPassword, comparePassword } from '../../utils/password.util';
-import { generateToken } from '../../utils/jwt.util';
+import { generateRefreshToken, generateToken, verifyRefreshToken } from '../../utils/jwt.util';
 
 export class AuthService {
   private toAuthUser(user: { id: string; name: string; email: string; role: string }) {
@@ -22,15 +22,19 @@ export class AuthService {
 
     const hashedPassword = await hashPassword(data.password);
     const user = await authRepository.createUser({
-      ...data,
-      password: hashedPassword,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      passwordHash: hashedPassword,
     });
 
     const accessToken = generateToken({ userId: user.id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user.id, role: user.role });
 
     return {
       user: this.toAuthUser(user),
       accessToken,
+      refreshToken,
     };
   }
 
@@ -40,7 +44,7 @@ export class AuthService {
       throw new AppError(401, 'Invalid email or password');
     }
 
-    const isPasswordValid = await comparePassword(data.password, user.password);
+    const isPasswordValid = await comparePassword(data.password, user.passwordHash);
     if (!isPasswordValid) {
       throw new AppError(401, 'Invalid email or password');
     }
@@ -50,10 +54,12 @@ export class AuthService {
     }
 
     const accessToken = generateToken({ userId: user.id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user.id, role: user.role });
 
     return {
       user: this.toAuthUser(user),
       accessToken,
+      refreshToken,
     };
   }
 
@@ -68,6 +74,34 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+    };
+  }
+
+  async refreshSession(refreshToken: string): Promise<AuthResponseDto> {
+    let payload: { userId: string; role: string };
+
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      throw new AppError(401, 'Refresh token is invalid or expired');
+    }
+
+    const user = await authRepository.findUserById(payload.userId);
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+
+    if (!user.isActive) {
+      throw new AppError(403, 'Account has been deactivated');
+    }
+
+    const nextAccessToken = generateToken({ userId: user.id, role: user.role });
+    const nextRefreshToken = generateRefreshToken({ userId: user.id, role: user.role });
+
+    return {
+      user: this.toAuthUser(user),
+      accessToken: nextAccessToken,
+      refreshToken: nextRefreshToken,
     };
   }
 }

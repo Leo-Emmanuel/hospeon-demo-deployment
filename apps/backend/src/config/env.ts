@@ -46,7 +46,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: databaseUrlSchema,
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
-  JWT_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_SECRET: z.string().optional(),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: corsOriginsSchema,
 });
 

@@ -1,456 +1,454 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { AlertTriangleIcon, EditIcon, FlaskConicalIcon, PhoneIcon, SaveIcon, XIcon } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import {
-  CalendarIcon,
-  FileTextIcon,
-  ReceiptIcon,
-  FlaskConicalIcon,
-  FolderIcon,
-  ShieldIcon,
-  ClockIcon,
-  ActivityIcon,
-  PhoneIcon,
-  EditIcon,
-  PlusIcon,
-  AlertTriangleIcon,
-  PrinterIcon } from
-'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, SectionTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { MonoNumber, MoneyText } from '@/components/ui/MonoNumber';
-import {
-  StatusBadge,
-  AutoStatusBadge } from
-'@/components/ui/StatusBadge';
-import { AIInsightPanel } from '@/components/ui/AIInsightPanel';
-const patients: any[] = [];
-import { cn } from '@/lib/cn';
-const tabs = [
-{
-  id: 'overview',
-  label: 'Overview',
-  icon: ActivityIcon
-},
-{
-  id: 'timeline',
-  label: 'Timeline',
-  icon: ClockIcon
-},
-{
-  id: 'visits',
-  label: 'Visits',
-  icon: CalendarIcon
-},
-{
-  id: 'prescriptions',
-  label: 'Prescriptions',
-  icon: FileTextIcon
-},
-{
-  id: 'labs',
-  label: 'Lab Reports',
-  icon: FlaskConicalIcon
-},
-{
-  id: 'bills',
-  label: 'Bills',
-  icon: ReceiptIcon
-},
-{
-  id: 'documents',
-  label: 'Documents',
-  icon: FolderIcon
-},
-{
-  id: 'consent',
-  label: 'Consent',
-  icon: ShieldIcon
-},
-{
-  id: 'audit',
-  label: 'Audit',
-  icon: ShieldIcon
-}];
+import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
+import { Input, Select } from '@/components/ui/Input';
+import { MonoNumber } from '@/components/ui/MonoNumber';
+import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
+import { usePatient, useUpdatePatient } from '@/features/patients/hooks/usePatientQueries';
+import { PatientDetail, UpdatePatientPayload, VisitSummary } from '@/services/patientService';
+
+const formatDateTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
+const formatDate = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '—';
+
+const genderLabel = (value: PatientDetail['gender']) =>
+  value === 'MALE' ? 'Male' : value === 'FEMALE' ? 'Female' : 'Other';
+
+const ageFromDob = (dob: string) => {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDelta = today.getMonth() - birthDate.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age;
+};
+
+const patientName = (patient: PatientDetail) => `${patient.firstName} ${patient.lastName}`.trim();
+
+const latestVisitVitals = (visits: VisitSummary[]) => {
+  const latestVitals = visits[0]?.vitals;
+  return latestVitals && typeof latestVitals === 'object' ? Object.entries(latestVitals) : [];
+};
 
 export function PatientProfile() {
-  const { id } = useParams();
-  const patient = patients.find((p) => p.id === id) || patients[0];
-  const [tab, setTab] = useState('overview');
-  return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-        {
-          label: 'Patients',
-          href: '/patients'
-        },
-        {
-          label: patient.name
-        }]
+  const { id = '' } = useParams();
+  const patientQuery = usePatient(id);
+  const patient = patientQuery.data?.data;
+  const updatePatient = useUpdatePatient(id);
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState<UpdatePatientPayload>({});
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    if (!patient) return;
+    setForm({
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      dob: patient.dob.slice(0, 10),
+      gender: patient.gender,
+      bloodGroup: patient.bloodGroup || undefined,
+      phone: patient.phone || undefined,
+      email: patient.email || undefined,
+      address: {
+        line1: patient.address?.line1 || '',
+        line2: patient.address?.line2 || '',
+        city: patient.address?.city || '',
+        state: patient.address?.state || '',
+        postalCode: patient.address?.postalCode || '',
+      },
+      emergencyContact: {
+        name: patient.emergencyContact?.name || '',
+        phone: patient.emergencyContact?.phone || '',
+        relationship: patient.emergencyContact?.relationship || '',
+      },
+      insuranceInfo: {
+        provider: patient.insuranceInfo?.provider || '',
+        policyNumber: patient.insuranceInfo?.policyNumber || '',
+        memberId: patient.insuranceInfo?.memberId || '',
+        planName: patient.insuranceInfo?.planName || '',
+      },
+    });
+  }, [patient]);
+
+  const handleSave = async () => {
+    setSaveError('');
+    try {
+      await updatePatient.mutateAsync(form);
+      setIsEditing(false);
+    } catch (error) {
+      setSaveError((error as { message?: string })?.message || 'Could not save patient changes');
+    }
+  };
+
+  if (patientQuery.isLoading) {
+    return <LoadingSkeleton rows={10} />;
+  }
+
+  if (patientQuery.isError || !patient) {
+    return (
+      <EmptyState
+        title="Patient profile unavailable"
+        description={(patientQuery.error as { message?: string })?.message || 'The patient record could not be loaded.'}
+        action={
+          <Button variant="primary" onClick={() => patientQuery.refetch()}>
+            Retry
+          </Button>
         }
-        title={patient.name}
+      />
+    );
+  }
+
+  const visits = patient.visits || [];
+  const prescriptions = patient.prescriptions || [];
+  const consultations = patient.consultations || [];
+  const labOrders = patient.labOrders || [];
+  const vitals = latestVisitVitals(visits);
+  const formatStatus = (value: string) => value.replace(/_/g, ' ');
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        breadcrumbs={[{ label: 'Patients', href: '/patients' }, { label: patientName(patient) }]}
+        title={patientName(patient)}
         meta={
-        <div className="flex flex-wrap items-center gap-3 text-sm text-ink-secondary">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-ink-secondary">
             <MonoNumber size="sm" weight="medium">
-              {patient.id}
+              {patient.uhid}
             </MonoNumber>
-            <span className="text-ink-tertiary">·</span>
+            <span>·</span>
             <span>
-              <MonoNumber size="sm">{patient.age}</MonoNumber> ·{' '}
-              {patient.gender === 'M' ? 'Male' : 'Female'}
+              <MonoNumber size="sm">{ageFromDob(patient.dob)}</MonoNumber> · {genderLabel(patient.gender)}
             </span>
-            <span className="text-ink-tertiary">·</span>
+            <span>·</span>
             <span className="inline-flex items-center gap-1">
               <PhoneIcon className="w-3 h-3" />
-              <MonoNumber size="sm">{patient.phone}</MonoNumber>
+              <MonoNumber size="sm">{patient.phone || 'No phone'}</MonoNumber>
             </span>
-            <StatusBadge tone="neutral">Blood: {patient.blood}</StatusBadge>
-            {patient.balance > 0 &&
-          <StatusBadge tone="warning" dot>
-                Outstanding {`₹${patient.balance}`}
-              </StatusBadge>
-          }
+            {patient.bloodGroup ? <StatusBadge tone="neutral">Blood: {patient.bloodGroup}</StatusBadge> : null}
           </div>
         }
         actions={
-        <>
-            <Button variant="secondary" icon={<PrinterIcon />}>
-              Print
+          isEditing ? (
+            <>
+              <Button variant="ghost" icon={<XIcon />} onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" icon={<SaveIcon />} onClick={handleSave} disabled={updatePatient.isPending}>
+                {updatePatient.isPending ? 'Saving...' : 'Save changes'}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" icon={<EditIcon />} onClick={() => setIsEditing(true)}>
+              Edit profile
             </Button>
-            <Button variant="secondary" icon={<EditIcon />}>
-              Edit
-            </Button>
-            <Button variant="primary" icon={<PlusIcon />}>
-              Start consultation
-            </Button>
-          </>
-        } />
-      
+          )
+        }
+      />
 
-      {/* Tabs */}
-      <div className="border-b border-line dark:border-line-dark mb-6 -mx-4 lg:-mx-6 px-4 lg:px-6 overflow-x-auto">
-        <div className="flex items-center gap-1">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 px-3 py-2.5 text-sm border-b-2 transition-colors whitespace-nowrap',
-                  tab === t.id ?
-                  'border-accent text-ink-primary dark:text-ink-primary-dark font-medium' :
-                  'border-transparent text-ink-secondary hover:text-ink-primary'
-                )}>
-                
-                <Icon className="w-3.5 h-3.5" />
-                {t.label}
-              </button>);
-
-          })}
-        </div>
-      </div>
-
-      {tab === 'overview' &&
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 space-y-4">
-            {/* Vitals */}
-            <Card>
-              <SectionTitle
-              title="Latest vitals"
-              description="Recorded 2 days ago at consultation"
-              action={
-              <Button size="sm" variant="ghost">
-                    View history
-                  </Button>
-              } />
-            
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-              {
-                label: 'BP',
-                value: '138/86',
-                unit: 'mmHg',
-                abnormal: true
-              },
-              {
-                label: 'Pulse',
-                value: '78',
-                unit: 'bpm'
-              },
-              {
-                label: 'Temp',
-                value: '98.4',
-                unit: '°F'
-              },
-              {
-                label: 'SpO₂',
-                value: '97',
-                unit: '%'
-              },
-              {
-                label: 'Weight',
-                value: '72.5',
-                unit: 'kg'
-              },
-              {
-                label: 'Height',
-                value: '168',
-                unit: 'cm'
-              },
-              {
-                label: 'BMI',
-                value: '25.7',
-                unit: 'kg/m²'
-              },
-              {
-                label: 'FBS',
-                value: '142',
-                unit: 'mg/dL',
-                abnormal: true
-              }].
-              map((v) =>
-              <div
-                key={v.label}
-                className={cn(
-                  'p-3 rounded-xl',
-                  v.abnormal ?
-                  'bg-warning-soft' :
-                  'bg-subtle/60 dark:bg-subtle-dark/60'
-                )}>
-                
-                    <div className="text-[10px] uppercase tracking-wider text-ink-tertiary font-medium">
-                      {v.label}
-                    </div>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <MonoNumber
-                    size="lg"
-                    weight="semibold"
-                    className={v.abnormal ? 'text-warning' : ''}>
-                    
-                        {v.value}
-                      </MonoNumber>
-                      <span className="text-[10px] text-ink-tertiary">
-                        {v.unit}
-                      </span>
-                    </div>
-                  </div>
-              )}
-              </div>
-            </Card>
-
-            {/* Recent visits */}
-            <Card>
-              <SectionTitle title="Recent visits" />
-              <div className="space-y-3">
-                {[
-              {
-                date: '2026-05-08',
-                doctor: 'Dr. Anjali Menon',
-                dept: 'General Medicine',
-                diagnosis: 'Hypertension follow-up',
-                status: 'Completed'
-              },
-              {
-                date: '2026-04-21',
-                doctor: 'Dr. Anjali Menon',
-                dept: 'General Medicine',
-                diagnosis: 'Diabetic review',
-                status: 'Completed'
-              },
-              {
-                date: '2026-03-14',
-                doctor: 'Dr. Rahul Verma',
-                dept: 'Cardiology',
-                diagnosis: 'Cardiac evaluation',
-                status: 'Completed'
-              }].
-              map((v, i) =>
-              <div
-                key={i}
-                className="flex items-start justify-between gap-4 p-3 rounded-xl hover:bg-subtle/60 dark:hover:bg-subtle-dark/60 -mx-3">
-                
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-accent-soft text-accent flex items-center justify-center text-xs font-mono shrink-0">
-                        {v.date.slice(8, 10)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-ink-primary dark:text-ink-primary-dark">
-                          {v.diagnosis}
-                        </p>
-                        <p className="text-xs text-ink-secondary mt-0.5">
-                          {v.doctor} · {v.dept}
-                        </p>
-                        <MonoNumber size="xs" className="text-ink-tertiary">
-                          {v.date}
-                        </MonoNumber>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="ghost">
-                      View →
-                    </Button>
-                  </div>
-              )}
-              </div>
-            </Card>
-
-            {/* Active medications */}
-            <Card>
-              <SectionTitle title="Active medications" />
-              <div className="space-y-2">
-                {[
-              {
-                name: 'Metformin 500mg',
-                dose: '1 tab',
-                freq: 'BD',
-                dur: 'Ongoing'
-              },
-              {
-                name: 'Telmisartan 40mg',
-                dose: '1 tab',
-                freq: 'OD',
-                dur: 'Ongoing'
-              },
-              {
-                name: 'Atorvastatin 20mg',
-                dose: '1 tab',
-                freq: 'HS',
-                dur: '90 days'
-              }].
-              map((m, i) =>
-              <div
-                key={i}
-                className="flex items-center justify-between py-2 border-b border-line dark:border-line-dark last:border-0">
-                
-                    <div>
-                      <p className="text-sm font-medium">{m.name}</p>
-                      <p className="text-xs text-ink-tertiary">
-                        {m.dose} · {m.freq} · {m.dur}
-                      </p>
-                    </div>
-                    <StatusBadge tone="success" dot size="sm">
-                      Active
-                    </StatusBadge>
-                  </div>
-              )}
-              </div>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card>
-              <SectionTitle title="Patient overview" />
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-ink-tertiary">Patient ID</dt>
-                  <dd>
-                    <MonoNumber size="sm" weight="medium">
-                      {patient.id}
-                    </MonoNumber>
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-tertiary">Age / Gender</dt>
-                  <dd>
-                    <MonoNumber size="sm">{patient.age}</MonoNumber> ·{' '}
-                    {patient.gender === 'M' ? 'Male' : 'Female'}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-tertiary">Blood group</dt>
-                  <dd className="font-medium">{patient.blood}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-tertiary">Last visit</dt>
-                  <dd>
-                    <MonoNumber size="sm">{patient.lastVisit}</MonoNumber>
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-tertiary">Next appointment</dt>
-                  <dd className="text-ink-tertiary">—</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-tertiary">Outstanding</dt>
-                  <dd>
-                    {patient.balance > 0 ?
-                  <MoneyText
-                    amount={patient.balance}
-                    size="sm"
-                    weight="medium"
-                    className="text-warning" /> :
-
-
-                  <span className="text-success">Cleared</span>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4">
+        <div className="space-y-4">
+          <Card>
+            <SectionTitle title="Demographics" description="Patient identity, contact information, and emergency details." />
+            {isEditing ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="First name"
+                  value={form.firstName || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
+                />
+                <Input
+                  label="Last name"
+                  value={form.lastName || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
+                />
+                <Input
+                  label="Date of birth"
+                  type="date"
+                  value={(form.dob as string) || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, dob: event.target.value }))}
+                />
+                <Select
+                  label="Gender"
+                  value={form.gender || 'MALE'}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, gender: event.target.value as PatientDetail['gender'] }))
+                  }>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </Select>
+                <Input
+                  label="Phone"
+                  value={form.phone || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                />
+                <Input
+                  label="Email"
+                  value={form.email || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                />
+                <Input
+                  label="Blood group"
+                  value={form.bloodGroup || ''}
+                  onChange={(event) => setForm((current) => ({ ...current, bloodGroup: event.target.value }))}
+                />
+                <Input
+                  label="Emergency contact name"
+                  value={form.emergencyContact?.name || ''}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, name: event.target.value },
+                    }))
                   }
+                />
+                <Input
+                  label="Emergency contact phone"
+                  value={form.emergencyContact?.phone || ''}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, phone: event.target.value },
+                    }))
+                  }
+                />
+                <Input
+                  label="Relationship"
+                  value={form.emergencyContact?.relationship || ''}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, relationship: event.target.value },
+                    }))
+                  }
+                />
+              </div>
+            ) : (
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <dt className="text-ink-tertiary">DOB</dt>
+                  <dd className="mt-1">{formatDate(patient.dob)}</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-tertiary">Email</dt>
+                  <dd className="mt-1 break-all">{patient.email || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-tertiary">Address</dt>
+                  <dd className="mt-1">
+                    {patient.address?.line1 || patient.address?.city
+                      ? [
+                          patient.address?.line1,
+                          patient.address?.line2,
+                          patient.address?.city,
+                          patient.address?.state,
+                          patient.address?.postalCode,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')
+                      : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-ink-tertiary">Emergency contact</dt>
+                  <dd className="mt-1">
+                    {patient.emergencyContact?.name || patient.emergencyContact?.phone
+                      ? `${patient.emergencyContact?.name || 'Unknown'} · ${patient.emergencyContact?.relationship || 'Relationship not set'} · ${patient.emergencyContact?.phone || 'No phone'}`
+                      : '—'}
                   </dd>
                 </div>
               </dl>
-              {patient.allergies.length > 0 &&
-            <div className="mt-4 p-3 rounded-xl bg-danger-soft border border-danger/20">
-                  <div className="flex items-center gap-1.5 mb-1.5 text-danger">
-                    <AlertTriangleIcon className="w-3.5 h-3.5" />
-                    <span className="text-xs font-semibold uppercase tracking-wide">
-                      Allergies
-                    </span>
-                  </div>
-                  <p className="text-sm text-ink-primary">
-                    {patient.allergies.join(', ')}
-                  </p>
-                </div>
-            }
-              {patient.conditions.length > 0 &&
-            <div className="mt-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary mb-2">
-                    Known conditions
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {patient.conditions.map((c: string) =>
-                <StatusBadge key={c} tone="neutral">
-                        {c}
-                      </StatusBadge>
-                )}
-                  </div>
-                </div>
-            }
-            </Card>
+            )}
+            {saveError ? <p className="mt-4 text-sm text-danger">{saveError}</p> : null}
+          </Card>
 
-            <AIInsightPanel
-            title="AI patient summary"
-            subtitle="Generated · review before relying"
-            needsReview
-            insights={[
-            {
-              tone: 'info',
-              title: 'Clinical summary',
-              body: '54-year-old male with hypertension and Type 2 diabetes. Last HbA1c 7.8%. BP trending up over last 3 visits.'
-            },
-            {
-              tone: 'warning',
-              title: 'Risk notes',
-              body: 'Lipid profile pending. BMI in overweight range. Consider cardiovascular risk assessment.'
-            },
-            {
-              tone: 'success',
-              title: 'Suggested follow-up questions',
-              body: 'Has medication adherence improved? Any dietary changes? Home BP readings?'
-            }]
-            } />
-          
-          </div>
+          <Card>
+            <SectionTitle title="Visit history timeline" description="Most recent visits pulled directly from the ERP backend." />
+            {visits.length === 0 ? (
+              <EmptyState compact title="No visits yet" description="This patient has not been checked in for a visit." />
+            ) : (
+              <div className="space-y-3">
+                {visits.map((visit) => (
+                  <div key={visit.id} className="rounded-xl border border-line dark:border-line-dark p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-ink-primary dark:text-ink-primary-dark">
+                          {visit.department?.name || visit.visitType} · Token <MonoNumber size="sm">{visit.tokenNumber}</MonoNumber>
+                        </p>
+                        <p className="text-sm text-ink-secondary mt-1">{visit.chiefComplaint || 'No chief complaint recorded'}</p>
+                        <p className="text-xs text-ink-tertiary mt-2">
+                          {visit.doctor?.name || 'Doctor unassigned'} · Checked in {formatDateTime(visit.checkedInAt)}
+                        </p>
+                      </div>
+                        <AutoStatusBadge status={formatStatus(visit.status)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <SectionTitle title="Active prescriptions" description="Live prescription rows linked to this patient." />
+            {prescriptions.length === 0 ? (
+              <EmptyState compact title="No active prescriptions" description="Prescriptions will appear here after consultation." />
+            ) : (
+              <div className="space-y-2">
+                {prescriptions.map((prescription) => (
+                  <div key={prescription.id} className="flex items-center justify-between gap-4 py-2 border-b border-line dark:border-line-dark last:border-0">
+                    <div>
+                      <p className="font-medium">{prescription.drugName}</p>
+                      <p className="text-xs text-ink-tertiary">
+                        {prescription.dosage} · {prescription.frequency} · {prescription.durationDays} days
+                        {prescription.route ? ` · ${prescription.route}` : ''}
+                      </p>
+                    </div>
+                    <StatusBadge tone="success" dot>
+                      Active
+                    </StatusBadge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <SectionTitle title="Lab result summary" description="Recent lab orders and result status for doctor review." />
+            {labOrders.length === 0 ? (
+              <EmptyState compact title="No lab orders" description="Lab requests will appear here once they are created." />
+            ) : (
+              <div className="space-y-3">
+                {labOrders.map((order) => (
+                  <div key={order.id} className="rounded-xl border border-line dark:border-line-dark p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-ink-primary dark:text-ink-primary-dark">
+                          {order.testCatalog?.name || 'Lab test'} · {order.priority}
+                        </p>
+                        <p className="text-xs text-ink-tertiary mt-1">Ordered {formatDateTime(order.orderedAt)}</p>
+                        {order.result ? (
+                          <p className="text-sm mt-2">
+                            Result: <MonoNumber size="sm">{order.result.resultValue}</MonoNumber>{' '}
+                            {order.result.resultUnit || ''}
+                            {order.result.referenceRange ? ` · Ref ${order.result.referenceRange}` : ''}
+                          </p>
+                        ) : (
+                          <p className="text-sm mt-2 text-ink-secondary">Result not entered yet.</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <AutoStatusBadge status={formatStatus(order.status)} />
+                        {order.result?.isAbnormal ? <StatusBadge tone="warning">Abnormal</StatusBadge> : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
-      }
 
-      {tab !== 'overview' &&
-      <Card className="py-16 text-center">
-          <p className="text-sm text-ink-secondary">
-            This tab content is part of the patient record. Select{' '}
-            <span className="font-medium text-ink-primary">Overview</span> to
-            see the full demo view.
-          </p>
-        </Card>
-      }
-    </div>);
+        <div className="space-y-4">
+          <Card>
+            <SectionTitle title="Patient overview" description="Fast intake summary for clinicians and reception." />
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-tertiary">Registered</dt>
+                <dd>{formatDate(patient.createdAt)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-tertiary">Insurance</dt>
+                <dd className="text-right">{patient.insuranceInfo?.provider || 'Self pay / not set'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-tertiary">Policy number</dt>
+                <dd className="text-right">{patient.insuranceInfo?.policyNumber || '—'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-tertiary">Last updated</dt>
+                <dd className="text-right">{formatDateTime(patient.updatedAt)}</dd>
+              </div>
+            </dl>
+          </Card>
 
+          <Card>
+            <SectionTitle title="Latest vitals" description="Derived from the most recent visit payload." />
+            {vitals.length === 0 ? (
+              <EmptyState compact title="No vitals recorded" description="Visit vitals will show up here once staff capture them." />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {vitals.map(([key, value]) => (
+                  <div key={key} className="rounded-xl bg-subtle/60 dark:bg-subtle-dark/60 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-ink-tertiary">{key}</p>
+                    <p className="text-sm font-medium mt-1 break-words">{String(value)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="border-warning/20 bg-warning-soft/30">
+            <div className="flex items-start gap-3">
+              <AlertTriangleIcon className="w-4 h-4 mt-0.5 text-warning" />
+              <div>
+                <p className="font-medium text-ink-primary dark:text-ink-primary-dark">Clinical note</p>
+                <p className="text-sm text-ink-secondary mt-1">
+                  {labOrders.some((order) => order.result?.isAbnormal)
+                    ? 'One or more recent lab results are flagged abnormal and should be reviewed before the next consultation.'
+                    : 'No abnormal lab flags are currently visible in the recent summary.'}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle title="Recent consultations" description="Diagnosis history from the most recent encounters." />
+            {consultations.length === 0 ? (
+              <EmptyState compact title="No consultations" description="Consultation records will appear here after the first doctor note." />
+            ) : (
+              <div className="space-y-3">
+                {consultations.map((consultation) => (
+                  <div key={consultation.id} className="rounded-xl border border-line dark:border-line-dark p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{consultation.diagnosis || 'Diagnosis pending'}</p>
+                        <p className="text-xs text-ink-tertiary mt-1">{formatDate(consultation.createdAt)}</p>
+                        <p className="text-sm text-ink-secondary mt-2">{consultation.clinicalNotes || 'No clinical notes recorded.'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FlaskConicalIcon className="w-4 h-4 text-ink-tertiary" />
+                        <AutoStatusBadge status={consultation.status} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }

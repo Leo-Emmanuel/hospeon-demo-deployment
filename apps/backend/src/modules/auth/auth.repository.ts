@@ -9,13 +9,13 @@ export class AuthRepository {
   }
 
   async findUserByEmail(email: string) {
-    return prisma.user.findUnique({
+    return prisma.user.findFirst({
       where: { email, deletedAt: null },
     });
   }
 
   async findUserById(id: string) {
-    return prisma.user.findUnique({
+    return prisma.user.findFirst({
       where: { id, deletedAt: null },
     });
   }

@@ -15,11 +15,17 @@ declare global {
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const cookieToken = req.headers.cookie
+    ?.split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('accessToken='))
+    ?.split('=')[1];
+
+  if ((!authHeader || !authHeader.startsWith('Bearer ')) && !cookieToken) {
     return next(new AppError(401, 'Not authenticated'));
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : cookieToken;
   if (!token) {
     return next(new AppError(401, 'Not authenticated'));
   }

@@ -15,6 +15,12 @@ import { IconButton } from '@/components/ui/Button';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/cn';
+import { authApi } from '@/features/auth/api/auth.api';
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useUnreadNotifications,
+} from '@/features/notifications/hooks/useNotificationQueries';
 const branches: any[] = [{id: '1', name: 'Main Branch'}];
 
 interface HeaderProps {
@@ -25,7 +31,11 @@ interface HeaderProps {
 export function Header({ onMenuClick, onToggleTheme, isDark }: HeaderProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const notificationsQuery = useUnreadNotifications();
+  const markNotificationRead = useMarkNotificationRead();
+  const markAllNotificationsRead = useMarkAllNotificationsRead();
   const [branchOpen, setBranchOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState(branches[0]);
   const now = new Date();
@@ -38,8 +48,29 @@ export function Header({ onMenuClick, onToggleTheme, isDark }: HeaderProps) {
     hour: '2-digit',
     minute: '2-digit'
   });
+  const unreadCount = notificationsQuery.data?.data?.length || 0;
 
-  const handleLogout = () => {
+  const notificationHref = (entityType?: string | null, entityId?: string | null) => {
+    if (!entityType || !entityId) return null;
+    if (entityType === 'lab_orders') return `/lab/reports?orderId=${entityId}`;
+    if (entityType === 'patients') return `/patients/${entityId}`;
+    if (entityType === 'visits') return `/visits/${entityId}/consult`;
+    return null;
+  };
+
+  const handleNotificationClick = async (id: string, entityType?: string | null, entityId?: string | null) => {
+    await markNotificationRead.mutateAsync(id);
+    setNotificationsOpen(false);
+    const target = notificationHref(entityType, entityId);
+    if (target) navigate(target);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Clear local auth state even if the backend cookie clear request fails.
+    }
     logout();
     navigate('/login');
   };
@@ -134,11 +165,59 @@ export function Header({ onMenuClick, onToggleTheme, isDark }: HeaderProps) {
           <IconButton
             variant="ghost"
             aria-label="Notifications"
-            className="relative">
-            
+            className="relative"
+            onClick={() => setNotificationsOpen((open) => !open)}>
             <BellIcon />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-danger rounded-full" />
+            {unreadCount > 0 &&
+            <>
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-danger text-white text-[10px] leading-4 text-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              </>
+            }
           </IconButton>
+          {notificationsOpen &&
+          <div className="absolute right-4 top-14 md:right-6 lg:right-8 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark shadow-pop z-50 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark">
+                <div>
+                  <p className="text-sm font-semibold text-ink-primary dark:text-ink-primary-dark">Notifications</p>
+                  <p className="text-xs text-ink-tertiary">{unreadCount} unread</p>
+                </div>
+                <button
+                  onClick={() => markAllNotificationsRead.mutate()}
+                  disabled={unreadCount === 0 || markAllNotificationsRead.isPending}
+                  className="text-xs font-medium text-accent disabled:text-ink-tertiary">
+                  {markAllNotificationsRead.isPending ? 'Marking...' : 'Mark all read'}
+                </button>
+              </div>
+
+              <div className="max-h-[420px] overflow-y-auto">
+                {notificationsQuery.isLoading ? (
+                  <div className="p-4 text-sm text-ink-secondary">Loading notifications...</div>
+                ) : unreadCount === 0 ? (
+                  <div className="p-4 text-sm text-ink-secondary">No unread notifications right now.</div>
+                ) : (
+                  notificationsQuery.data?.data?.map((notification) => (
+                    <button
+                      key={notification.id}
+                      onClick={() => handleNotificationClick(notification.id, notification.entityType, notification.entityId)}
+                      className="w-full px-4 py-3 text-left border-b border-line/60 dark:border-line-dark/60 last:border-b-0 hover:bg-subtle/50 dark:hover:bg-subtle-dark/50">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-ink-primary dark:text-ink-primary-dark">{notification.title}</p>
+                          <p className="text-xs text-ink-secondary mt-1">{notification.message}</p>
+                          <p className="text-[11px] text-ink-tertiary mt-2">
+                            {new Date(notification.createdAt).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        <span className="mt-1 inline-block w-2 h-2 rounded-full bg-accent shrink-0" />
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          }
 
           <IconButton
             variant="ghost"

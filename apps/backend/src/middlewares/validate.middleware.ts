@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { ZodError, ZodTypeAny, z } from 'zod';
 import { AppError } from '../utils/app-error';
 
-export const validateRequest = (schema: AnyZodObject) => {
+export const validateRequest = (schema: ZodTypeAny, source: 'body' | 'query' | 'params' = 'body') => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      schema.parse(req.body);
+      const parsed = schema.parse(req[source]);
+      req[source] = parsed;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -16,3 +17,15 @@ export const validateRequest = (schema: AnyZodObject) => {
     }
   };
 };
+
+export const idParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export const orderIdParamSchema = z.object({
+  orderId: z.string().uuid(),
+});
+
+export const consultationIdParamSchema = z.object({
+  consultationId: z.string().uuid(),
+});
