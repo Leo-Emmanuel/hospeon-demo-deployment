@@ -4,6 +4,7 @@ import { AppError } from '../../utils/app-error';
 import { getPagination, getPaginationMeta } from '../../utils/pagination';
 import { generateUhid } from '../../utils/uhid';
 import { writeAuditLog } from '../../utils/auditLog';
+import { patientsRepository } from './patients.repository';
 
 export class PatientsService {
   async list(query: any) {
@@ -61,12 +62,12 @@ export class PatientsService {
       }),
     };
     const [items, total] = await Promise.all([
-      prisma.patient.findMany({
+      patientsRepository.findAll(
         where,
         skip,
         take,
-        orderBy: sortFieldMap[query.sort] || sortFieldMap.createdAt,
-        include: {
+        sortFieldMap[query.sort] || sortFieldMap.createdAt,
+        {
           visits: {
             orderBy: { checkedInAt: 'desc' },
             take: 1,
@@ -82,38 +83,28 @@ export class PatientsService {
             orderBy: { createdAt: 'desc' },
             take: 3,
           },
-        },
-      }),
-      prisma.patient.count({ where }),
+        }
+      ),
+      patientsRepository.count(where),
     ]);
     return { items, meta: getPaginationMeta(page, limit, total) };
   }
 
   async create(data: any, actorId?: string, ipAddress?: string) {
     return prisma.$transaction(async (tx) => {
-      const patient = await tx.patient.create({
-        data: {
-          ...data,
-          dob: new Date(data.dob),
-          uhid: await generateUhid(tx),
-          createdBy: actorId,
-        },
-      });
+      const patient = await patientsRepository.create({
+        ...data,
+        dob: new Date(data.dob),
+        uhid: await generateUhid(tx),
+        createdBy: actorId,
+      }, tx);
       await writeAuditLog(tx, { actorId, action: 'CREATE', entityType: 'patients', entityId: patient.id, newValues: patient, ipAddress });
       return patient;
     });
   }
 
   async getById(id: string) {
-    const patient = await prisma.patient.findFirst({
-      where: { id, deletedAt: null },
-      include: {
-        visits: { orderBy: { checkedInAt: 'desc' }, take: 10, include: { doctor: { select: { id: true, name: true } }, department: true } },
-        consultations: { orderBy: { createdAt: 'desc' }, take: 10 },
-        prescriptions: { where: { isActive: true }, orderBy: { createdAt: 'desc' } },
-        labOrders: { orderBy: { orderedAt: 'desc' }, take: 10, include: { testCatalog: true, result: true } },
-      },
-    });
+    const patient = await patientsRepository.findById(id);
     if (!patient) throw new AppError(404, 'Patient not found');
     return patient;
   }
@@ -122,7 +113,7 @@ export class PatientsService {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.patient.findFirst({ where: { id, deletedAt: null } });
       if (!existing) throw new AppError(404, 'Patient not found');
-      const patient = await tx.patient.update({ where: { id }, data });
+      const patient = await patientsRepository.update(id, data, tx);
       await writeAuditLog(tx, { actorId, action: 'UPDATE', entityType: 'patients', entityId: id, oldValues: existing, newValues: patient, ipAddress });
       return patient;
     });
@@ -132,26 +123,26 @@ export class PatientsService {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.patient.findFirst({ where: { id, deletedAt: null } });
       if (!existing) throw new AppError(404, 'Patient not found');
-      const patient = await tx.patient.update({ where: { id }, data: { deletedAt: new Date() } });
+      const patient = await patientsRepository.softDelete(id, tx);
       await writeAuditLog(tx, { actorId, action: 'DELETE', entityType: 'patients', entityId: id, oldValues: existing, newValues: patient, ipAddress });
       return patient;
     });
   }
 
   visits(id: string) {
-    return prisma.visit.findMany({ where: { patientId: id }, orderBy: { checkedInAt: 'desc' }, include: { doctor: { select: { id: true, name: true } }, department: true } });
+    return patientsRepository.findVisits(id);
   }
 
   consultations(id: string) {
-    return prisma.consultation.findMany({ where: { patientId: id }, orderBy: { createdAt: 'desc' }, include: { prescriptions: true } });
+    return patientsRepository.findConsultations(id);
   }
 
   labOrders(id: string) {
-    return prisma.labOrder.findMany({ where: { patientId: id }, orderBy: { orderedAt: 'desc' }, include: { testCatalog: true, result: true } });
+    return patientsRepository.findLabOrders(id);
   }
 
   prescriptions(id: string) {
-    return prisma.prescription.findMany({ where: { patientId: id, isActive: true }, orderBy: { createdAt: 'desc' } });
+    return patientsRepository.findPrescriptions(id);
   }
 }
 

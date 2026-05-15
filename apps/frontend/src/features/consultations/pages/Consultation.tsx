@@ -18,7 +18,7 @@ import {
 } from '@/features/consultations/hooks/useConsultationQueries';
 import { PrescriptionPayload } from '@/services/consultationService';
 import { queryClient } from '@/lib/react-query';
-import { callToast } from '@/lib/toast-singleton';
+import { useToast } from '@/components/ui/Toast';
 
 interface MedicationDraft extends PrescriptionPayload {
   localId: string;
@@ -61,6 +61,7 @@ const formatDateTime = (value?: string | null) =>
 
 export function Consultation() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { id = '' } = useParams();
   const visitQuery = useVisit(id);
   const updateVisitStatus = useUpdateVisitStatus();
@@ -182,9 +183,9 @@ export function Consultation() {
           followUpDate: followUpDate || undefined,
         },
       });
-      callToast('success', 'Draft saved');
+      toast.success('Draft saved');
     } catch (error) {
-      callToast('error', (error as { message?: string })?.message || 'Could not save consultation draft');
+      toast.error((error as { message?: string })?.message || 'Could not save consultation draft');
     }
   };
 
@@ -209,11 +210,13 @@ export function Consultation() {
         })),
       });
 
-      queryClient.invalidateQueries({ queryKey: visitKeys.detail(visit.id) });
-      callToast('success', 'Consultation completed');
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+      queryClient.invalidateQueries({ queryKey: ['consultations'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      toast.success('Consultation completed');
       navigate('/queue');
     } catch (error) {
-      callToast('error', (error as { message?: string })?.message || 'Could not complete consultation');
+      toast.error((error as { message?: string })?.message || 'Failed to complete consultation');
       // Form is intentionally NOT cleared — doctor can fix and retry
     }
   };
