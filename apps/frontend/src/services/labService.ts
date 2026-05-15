@@ -61,6 +61,7 @@ export interface LabOrderListParams {
   priority?: 'ROUTINE' | 'URGENT' | 'STAT';
   patientId?: string;
   date?: string;
+  category?: string;
 }
 
 export interface UpsertLabResultPayload {

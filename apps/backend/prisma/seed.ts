@@ -29,7 +29,15 @@ async function main() {
   }
 
   // 2. USERS
-  const usersToSeed = [
+  interface SeedUser {
+    email: string;
+    pass: string;
+    role: Role;
+    name: string;
+    deptName?: string;
+  }
+
+  const usersToSeed: SeedUser[] = [
     { email: 'admin@hospeon.com', pass: 'Admin@123', role: Role.ADMIN, name: 'System Admin' },
     { email: 'doctor1@hospeon.com', pass: 'Doctor@123', role: Role.DOCTOR, name: 'Dr. Rahul Sharma', deptName: 'Cardiology' },
     { email: 'doctor2@hospeon.com', pass: 'Doctor@123', role: Role.DOCTOR, name: 'Dr. Priya Patel', deptName: 'Pediatrics' },
