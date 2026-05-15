@@ -113,7 +113,7 @@ export function LabOrders({ category }: { category?: string }) {
               Collect sample
             </Button>
           ) : order.status === 'RESULTED' || order.status === 'APPROVED' ? (
-            <Button size="sm" variant="secondary" onClick={() => navigate(`/lab/reports?orderId=${order.id}`)}>
+            <Button size="sm" variant="secondary" onClick={() => navigate(`/lab/reports?orderId=${order.id}&status=${order.status}`)}>
               {order.status === 'APPROVED' ? 'View report' : 'Review result'}
             </Button>
           ) : (
@@ -236,7 +236,9 @@ export function LabReportReview() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedOrderId = searchParams.get('orderId') || '';
-  const reviewOrdersQuery = useLabOrders({ page: 1, limit: 50, status: 'RESULTED' });
+  const initialStatus = (searchParams.get('status') as any) || 'RESULTED';
+  const [status, setStatus] = useState<'RESULTED' | 'APPROVED'>(initialStatus === 'APPROVED' ? 'APPROVED' : 'RESULTED');
+  const reviewOrdersQuery = useLabOrders({ page: 1, limit: 50, status });
   const reviewOrders = reviewOrdersQuery.data?.data || [];
   const selectedOrder = reviewOrders.find((order) => order.id === selectedOrderId) || reviewOrders[0];
   const resultQuery = useLabResult(selectedOrder?.id || '');
@@ -311,7 +313,27 @@ export function LabReportReview() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-4">
         <Card>
-          <SectionTitle title="Awaiting approval" description={`${reviewOrders.length} resulted orders`} />
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <SectionTitle title="Lab reports" />
+            <div className="flex rounded-lg border border-line dark:border-line-dark p-1">
+              <button
+                onClick={() => setStatus('RESULTED')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  status === 'RESULTED' ? 'bg-accent text-white shadow-sm' : 'text-ink-tertiary hover:text-ink-secondary'
+                }`}
+              >
+                Resulted
+              </button>
+              <button
+                onClick={() => setStatus('APPROVED')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  status === 'APPROVED' ? 'bg-accent text-white shadow-sm' : 'text-ink-tertiary hover:text-ink-secondary'
+                }`}
+              >
+                Approved
+              </button>
+            </div>
+          </div>
           <div className="space-y-2">
             {reviewOrders.map((order) => (
               <button
