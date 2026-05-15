@@ -76,7 +76,7 @@ export function Patients() {
   };
 
   const followUpQuery = usePatients({ followUpDate: todayIso, limit: 1 });
-  const followUpCount = followUpQuery.data?.meta.total || 0;
+  const followUpCount = followUpQuery.data?.meta?.total || 0;
 
   const patientsQuery = usePatients(queryParams);
   const patients = patientsQuery.data?.data || [];

@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { ChevronRightIcon, RefreshCwIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card } from '@/components/ui/Card';
+import { Card, SectionTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input, Select } from '@/components/ui/Input';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
@@ -186,7 +187,7 @@ export function Queue() {
               <Input
                 placeholder="Search by name or UHID..."
                 value={patientSearch}
-                onChange={(e) => setPatientSearch(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPatientSearch(e.target.value)}
               />
               {patients.length > 0 && patientSearch.length > 1 && (
                 <div className="mt-1 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark shadow-lg overflow-hidden">
@@ -209,7 +210,7 @@ export function Queue() {
             <Select
               label="Visit type"
               value={checkInForm.visitType}
-              onChange={(e) => setCheckInForm({ ...checkInForm, visitType: e.target.value as VisitType })}>
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCheckInForm({ ...checkInForm, visitType: e.target.value as VisitType })}>
               <option value="OPD">OPD</option>
               <option value="EMERGENCY">Emergency</option>
               <option value="IPD">IPD Admission</option>
@@ -218,7 +219,7 @@ export function Queue() {
             <Select
               label="Department"
               value={checkInForm.departmentId}
-              onChange={(e) => setCheckInForm({ ...checkInForm, departmentId: e.target.value })}>
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCheckInForm({ ...checkInForm, departmentId: e.target.value })}>
               <option value="">Select department</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
@@ -228,7 +229,7 @@ export function Queue() {
             <Select
               label="Doctor"
               value={checkInForm.doctorId}
-              onChange={(e) => setCheckInForm({ ...checkInForm, doctorId: e.target.value })}>
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCheckInForm({ ...checkInForm, doctorId: e.target.value })}>
               <option value="">Select doctor</option>
               {doctors.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
@@ -240,7 +241,7 @@ export function Queue() {
               className="lg:col-span-2"
               placeholder="Reason for visit..."
               value={checkInForm.chiefComplaint}
-              onChange={(e) => setCheckInForm({ ...checkInForm, chiefComplaint: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckInForm({ ...checkInForm, chiefComplaint: e.target.value })}
             />
           </div>
 
