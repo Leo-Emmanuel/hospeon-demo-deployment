@@ -42,7 +42,7 @@ export class VisitsService {
       checkedInAt: { gte: start, lt: end },
       ...(query.status && { status: query.status }),
       ...(query.doctorId && { doctorId: query.doctorId }),
-      ...(String(currentUser?.role).toUpperCase() === 'DOCTOR' && { doctorId: currentUser.userId }),
+      ...(currentUser && String(currentUser.role).toUpperCase() === 'DOCTOR' && { doctorId: currentUser.userId }),
     };
     const [items, total] = await Promise.all([
       prisma.visit.findMany({ where, skip, take, orderBy: [{ tokenNumber: 'asc' }], include: { patient: true, doctor: { select: { id: true, name: true } }, department: true } }),
