@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangleIcon, EditIcon, FlaskConicalIcon, PhoneIcon, SaveIcon, XIcon } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { ActivityIcon, AlertTriangleIcon, ClipboardListIcon, EditIcon, FlaskConicalIcon, PhoneIcon, SaveIcon, UserIcon, XIcon } from 'lucide-react';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, SectionTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +8,7 @@ import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
 import { Input, Select } from '@/components/ui/Input';
 import { MonoNumber } from '@/components/ui/MonoNumber';
 import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
+import { Tabs } from '@/components/ui/Tabs';
 import { usePatient, useUpdatePatient } from '@/features/patients/hooks/usePatientQueries';
 import { PatientDetail, UpdatePatientPayload, VisitSummary } from '@/services/patientService';
 import { useAuthStore } from '@/features/auth/store/auth.store';
@@ -54,11 +55,27 @@ const latestVisitVitals = (visits: VisitSummary[]) => {
   return latestVitals && typeof latestVitals === 'object' ? Object.entries(latestVitals) : [];
 };
 
+const patientTabs = [
+  { id: 'overview', label: 'Overview', icon: <UserIcon /> },
+  { id: 'timeline', label: 'Timeline', icon: <ActivityIcon /> },
+  { id: 'prescriptions', label: 'Prescriptions', icon: <ClipboardListIcon /> },
+  { id: 'labs', label: 'Lab results', icon: <FlaskConicalIcon /> },
+];
+
+const getTabFromSearch = (params: URLSearchParams) => {
+  const tab = params.get('tab');
+  return patientTabs.some((item) => item.id === tab) ? (tab as string) : 'overview';
+};
+
 export function PatientProfile() {
   const { id = '' } = useParams();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isTimelineRoute = location.pathname.endsWith('/timeline');
   const patientQuery = usePatient(id);
   const patient = patientQuery.data?.data;
   const updatePatient = useUpdatePatient(id);
+  const [activeTab, setActiveTab] = useState(() => (isTimelineRoute ? 'timeline' : getTabFromSearch(searchParams)));
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<UpdatePatientPayload>({});
   const [saveError, setSaveError] = useState('');
@@ -95,6 +112,38 @@ export function PatientProfile() {
       },
     });
   }, [patient]);
+
+  useEffect(() => {
+    if (isTimelineRoute) {
+      if (activeTab !== 'timeline') {
+        setActiveTab('timeline');
+      }
+      if (searchParams.get('tab') !== 'timeline') {
+        const next = new URLSearchParams(searchParams);
+        next.set('tab', 'timeline');
+        setSearchParams(next, { replace: true });
+      }
+      return;
+    }
+
+    const nextTab = getTabFromSearch(searchParams);
+    if (nextTab !== activeTab) {
+      setActiveTab(nextTab);
+    }
+  }, [activeTab, isTimelineRoute, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (activeTab !== 'overview' && isEditing) {
+      setIsEditing(false);
+    }
+  }, [activeTab, isEditing]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tabId);
+    setSearchParams(next);
+  };
 
   const handleSave = async () => {
     setSaveError('');
@@ -154,239 +203,253 @@ export function PatientProfile() {
           </div>
         }
         actions={
-          isEditing ? (
-            <>
-              <Button variant="ghost" icon={<XIcon />} onClick={() => setIsEditing(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" icon={<SaveIcon />} onClick={handleSave} disabled={updatePatient.isPending}>
-                {updatePatient.isPending ? 'Saving...' : 'Save changes'}
-              </Button>
-            </>
-          ) : (
-            <Button variant="secondary" icon={<EditIcon />} onClick={() => setIsEditing(true)}>
-              Edit profile
-            </Button>
-          )
+          activeTab === 'overview'
+            ? isEditing
+              ? (
+                <>
+                  <Button variant="ghost" icon={<XIcon />} onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button variant="primary" icon={<SaveIcon />} onClick={handleSave} disabled={updatePatient.isPending}>
+                    {updatePatient.isPending ? 'Saving...' : 'Save changes'}
+                  </Button>
+                </>
+              )
+              : (
+                <Button variant="secondary" icon={<EditIcon />} onClick={() => setIsEditing(true)}>
+                  Edit profile
+                </Button>
+              )
+            : null
         }
       />
 
+      <Tabs tabs={patientTabs} activeTab={activeTab} onChange={handleTabChange} />
+
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4">
         <div className="space-y-4">
-          <Card>
-            <SectionTitle title="Demographics" description="Patient identity, contact information, and emergency details." />
-            {isEditing ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="First name"
-                  value={form.firstName || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
-                />
-                <Input
-                  label="Last name"
-                  value={form.lastName || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
-                />
-                <Input
-                  label="Date of birth"
-                  type="date"
-                  value={(form.dob as string) || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, dob: event.target.value }))}
-                />
-                <Select
-                  label="Gender"
-                  value={form.gender || 'MALE'}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, gender: event.target.value as PatientDetail['gender'] }))
-                  }>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                </Select>
-                <Input
-                  label="Phone"
-                  value={form.phone || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                />
-                <Input
-                  label="Email"
-                  value={form.email || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                />
-                <Input
-                  label="Blood group"
-                  value={form.bloodGroup || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, bloodGroup: event.target.value }))}
-                />
-                <Input
-                  label="Emergency contact name"
-                  value={form.emergencyContact?.name || ''}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, name: event.target.value },
-                    }))
-                  }
-                />
-                <Input
-                  label="Emergency contact phone"
-                  value={form.emergencyContact?.phone || ''}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, phone: event.target.value },
-                    }))
-                  }
-                />
-                <Input
-                  label="Relationship"
-                  value={form.emergencyContact?.relationship || ''}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, relationship: event.target.value },
-                    }))
-                  }
-                />
-              </div>
-            ) : (
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <dt className="text-ink-tertiary">DOB</dt>
-                  <dd className="mt-1">{formatDate(patient.dob)}</dd>
+          {activeTab === 'overview' && (
+            <Card>
+              <SectionTitle title="Demographics" description="Patient identity, contact information, and emergency details." />
+              {isEditing ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="First name"
+                    value={form.firstName || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
+                  />
+                  <Input
+                    label="Last name"
+                    value={form.lastName || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
+                  />
+                  <Input
+                    label="Date of birth"
+                    type="date"
+                    value={(form.dob as string) || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, dob: event.target.value }))}
+                  />
+                  <Select
+                    label="Gender"
+                    value={form.gender || 'MALE'}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, gender: event.target.value as PatientDetail['gender'] }))
+                    }>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </Select>
+                  <Input
+                    label="Phone"
+                    value={form.phone || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                  />
+                  <Input
+                    label="Email"
+                    value={form.email || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  />
+                  <Input
+                    label="Blood group"
+                    value={form.bloodGroup || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, bloodGroup: event.target.value }))}
+                  />
+                  <Input
+                    label="Emergency contact name"
+                    value={form.emergencyContact?.name || ''}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        emergencyContact: { ...current.emergencyContact, name: event.target.value },
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Emergency contact phone"
+                    value={form.emergencyContact?.phone || ''}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        emergencyContact: { ...current.emergencyContact, phone: event.target.value },
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Relationship"
+                    value={form.emergencyContact?.relationship || ''}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        emergencyContact: { ...current.emergencyContact, relationship: event.target.value },
+                      }))
+                    }
+                  />
                 </div>
-                <div>
-                  <dt className="text-ink-tertiary">Email</dt>
-                  <dd className="mt-1 break-all">{patient.email || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-ink-tertiary">Address</dt>
-                  <dd className="mt-1">
-                    {patient.address?.line1 || patient.address?.city
-                      ? [
-                          patient.address?.line1,
-                          patient.address?.line2,
-                          patient.address?.city,
-                          patient.address?.state,
-                          patient.address?.postalCode,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')
-                      : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-ink-tertiary">Emergency contact</dt>
-                  <dd className="mt-1">
-                    {patient.emergencyContact?.name || patient.emergencyContact?.phone
-                      ? `${patient.emergencyContact?.name || 'Unknown'} · ${patient.emergencyContact?.relationship || 'Relationship not set'} · ${patient.emergencyContact?.phone || 'No phone'}`
-                      : '—'}
-                  </dd>
-                </div>
-              </dl>
-            )}
-            {saveError ? <p className="mt-4 text-sm text-danger">{saveError}</p> : null}
-          </Card>
+              ) : (
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <dt className="text-ink-tertiary">DOB</dt>
+                    <dd className="mt-1">{formatDate(patient.dob)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-tertiary">Email</dt>
+                    <dd className="mt-1 break-all">{patient.email || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-tertiary">Address</dt>
+                    <dd className="mt-1">
+                      {patient.address?.line1 || patient.address?.city
+                        ? [
+                            patient.address?.line1,
+                            patient.address?.line2,
+                            patient.address?.city,
+                            patient.address?.state,
+                            patient.address?.postalCode,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')
+                        : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-tertiary">Emergency contact</dt>
+                    <dd className="mt-1">
+                      {patient.emergencyContact?.name || patient.emergencyContact?.phone
+                        ? `${patient.emergencyContact?.name || 'Unknown'} · ${patient.emergencyContact?.relationship || 'Relationship not set'} · ${patient.emergencyContact?.phone || 'No phone'}`
+                        : '—'}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              {saveError ? <p className="mt-4 text-sm text-danger">{saveError}</p> : null}
+            </Card>
+          )}
 
-          <Card>
-            <SectionTitle title="Visit history timeline" description="Most recent visits pulled directly from the ERP backend." />
-            {visits.length === 0 ? (
-              <EmptyState compact title="No visits yet" description="This patient has not been checked in for a visit." />
-            ) : (
-              <div className="space-y-3">
-                {visits.map((visit) => (
-                  <div key={visit.id} className="rounded-xl border border-line dark:border-line-dark p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          {activeTab === 'timeline' && (
+            <Card>
+              <SectionTitle title="Visit history timeline" description="Most recent visits pulled directly from the ERP backend." />
+              {visits.length === 0 ? (
+                <EmptyState compact title="No visits yet" description="This patient has not been checked in for a visit." />
+              ) : (
+                <div className="space-y-3">
+                  {visits.map((visit) => (
+                    <div key={visit.id} className="rounded-xl border border-line dark:border-line-dark p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-ink-primary dark:text-ink-primary-dark">
+                            {visit.department?.name || visit.visitType} · Token <MonoNumber size="sm">{visit.tokenNumber}</MonoNumber>
+                          </p>
+                          <p className="text-sm text-ink-secondary mt-1">{visit.chiefComplaint || 'No chief complaint recorded'}</p>
+                          <p className="text-xs text-ink-tertiary mt-2">
+                            {visit.doctor?.name || 'Doctor unassigned'} · Checked in {formatDateTime(visit.checkedInAt)}
+                          </p>
+                        </div>
+                          <AutoStatusBadge status={formatStatus(visit.status)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {activeTab === 'prescriptions' && (
+            <Card>
+              <SectionTitle title="Active prescriptions" description="Live prescription rows linked to this patient." />
+              {prescriptions.length === 0 ? (
+                <EmptyState compact title="No active prescriptions" description="Prescriptions will appear here after consultation." />
+              ) : (
+                <div className="space-y-2">
+                  {prescriptions.map((prescription) => (
+                    <div key={prescription.id} className="flex items-center justify-between gap-4 py-2 border-b border-line dark:border-line-dark last:border-0">
                       <div>
-                        <p className="font-medium text-ink-primary dark:text-ink-primary-dark">
-                          {visit.department?.name || visit.visitType} · Token <MonoNumber size="sm">{visit.tokenNumber}</MonoNumber>
-                        </p>
-                        <p className="text-sm text-ink-secondary mt-1">{visit.chiefComplaint || 'No chief complaint recorded'}</p>
-                        <p className="text-xs text-ink-tertiary mt-2">
-                          {visit.doctor?.name || 'Doctor unassigned'} · Checked in {formatDateTime(visit.checkedInAt)}
+                        <p className="font-medium">{prescription.drugName}</p>
+                        <p className="text-xs text-ink-tertiary">
+                          {prescription.dosage} · {prescription.frequency} · {prescription.durationDays} days
+                          {prescription.route ? ` · ${prescription.route}` : ''}
                         </p>
                       </div>
-                        <AutoStatusBadge status={formatStatus(visit.status)} />
+                      <StatusBadge tone="success" dot>
+                        Active
+                      </StatusBadge>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
 
-          <Card>
-            <SectionTitle title="Active prescriptions" description="Live prescription rows linked to this patient." />
-            {prescriptions.length === 0 ? (
-              <EmptyState compact title="No active prescriptions" description="Prescriptions will appear here after consultation." />
-            ) : (
-              <div className="space-y-2">
-                {prescriptions.map((prescription) => (
-                  <div key={prescription.id} className="flex items-center justify-between gap-4 py-2 border-b border-line dark:border-line-dark last:border-0">
-                    <div>
-                      <p className="font-medium">{prescription.drugName}</p>
-                      <p className="text-xs text-ink-tertiary">
-                        {prescription.dosage} · {prescription.frequency} · {prescription.durationDays} days
-                        {prescription.route ? ` · ${prescription.route}` : ''}
-                      </p>
-                    </div>
-                    <StatusBadge tone="success" dot>
-                      Active
-                    </StatusBadge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <SectionTitle title="Lab result summary" description="Recent lab orders and result status for doctor review." />
-            {labOrders.length === 0 ? (
-              <EmptyState compact title="No lab orders" description="Lab requests will appear here once they are created." />
-            ) : (
-              <div className="space-y-3">
-                {labOrders.map((order) => (
-                  <div key={order.id} className="rounded-xl border border-line dark:border-line-dark p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-ink-primary dark:text-ink-primary-dark">
-                          {order.testCatalog?.name || 'Lab test'} · {order.priority}
-                        </p>
-                        <p className="text-xs text-ink-tertiary mt-1">Ordered {formatDateTime(order.orderedAt)}</p>
-                        {order.result ? (
-                          <div className="mt-2 space-y-1">
-                            <p className="text-sm">
-                              Result: <MonoNumber size="sm">{order.result.resultValue}</MonoNumber>{' '}
-                              {order.result.resultUnit || ''}
-                              {order.result.referenceRange ? ` · Ref ${order.result.referenceRange}` : ''}
-                            </p>
-                            {order.result.approvedAt ? (
-                              <div className="flex items-center gap-2 mt-2">
-                                <StatusBadge tone="success">Approved</StatusBadge>
-                                <span className="text-xs text-ink-secondary">by {order.result.approver?.name || 'Doctor'} on {formatDateTime(order.result.approvedAt)}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 mt-2">
-                                <StatusBadge tone="warning">Awaiting approval</StatusBadge>
-                                {user?.role === 'DOCTOR' && (
-                                  <Button size="sm" variant="primary" disabled={approveResult.isPending} onClick={() => approveResult.mutateAsync(order.id)}>Approve</Button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-sm mt-2 text-ink-secondary">Result not entered yet.</p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <AutoStatusBadge status={formatStatus(order.status)} />
-                        {order.result?.isAbnormal ? <StatusBadge tone="warning">Abnormal</StatusBadge> : null}
+          {activeTab === 'labs' && (
+            <Card>
+              <SectionTitle title="Lab result summary" description="Recent lab orders and result status for doctor review." />
+              {labOrders.length === 0 ? (
+                <EmptyState compact title="No lab orders" description="Lab requests will appear here once they are created." />
+              ) : (
+                <div className="space-y-3">
+                  {labOrders.map((order) => (
+                    <div key={order.id} className="rounded-xl border border-line dark:border-line-dark p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-ink-primary dark:text-ink-primary-dark">
+                            {order.testCatalog?.name || 'Lab test'} · {order.priority}
+                          </p>
+                          <p className="text-xs text-ink-tertiary mt-1">Ordered {formatDateTime(order.orderedAt)}</p>
+                          {order.result ? (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-sm">
+                                Result: <MonoNumber size="sm">{order.result.resultValue}</MonoNumber>{' '}
+                                {order.result.resultUnit || ''}
+                                {order.result.referenceRange ? ` · Ref ${order.result.referenceRange}` : ''}
+                              </p>
+                              {order.result.approvedAt ? (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <StatusBadge tone="success">Approved</StatusBadge>
+                                  <span className="text-xs text-ink-secondary">by {order.result.approver?.name || 'Doctor'} on {formatDateTime(order.result.approvedAt)}</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <StatusBadge tone="warning">Awaiting approval</StatusBadge>
+                                  {user?.role === 'DOCTOR' && (
+                                    <Button size="sm" variant="primary" disabled={approveResult.isPending} onClick={() => approveResult.mutateAsync(order.id)}>Approve</Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm mt-2 text-ink-secondary">Result not entered yet.</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <AutoStatusBadge status={formatStatus(order.status)} />
+                          {order.result?.isAbnormal ? <StatusBadge tone="warning">Abnormal</StatusBadge> : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
         </div>
 
         <div className="space-y-4">
