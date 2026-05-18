@@ -43,6 +43,7 @@ export function Queue() {
     limit: 50,
     status,
     date: new Date().toISOString().slice(0, 10),
+    doctorId: user?.role === 'DOCTOR' ? user.id : undefined,
   });
   const updateVisitStatus = useUpdateVisitStatus();
   const createVisit = useCreateVisit();
