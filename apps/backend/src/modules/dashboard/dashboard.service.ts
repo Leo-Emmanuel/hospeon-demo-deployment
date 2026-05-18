@@ -32,7 +32,7 @@ export class DashboardService {
     };
     let data: unknown = base;
 
-    if (role === 'DOCTOR') {
+    if (String(role).toUpperCase() === 'DOCTOR') {
       data = {
         ...base,
         myQueue: await dashboardRepository.countVisits({ doctorId: userId, status: { in: ['WAITING', 'IN_CONSULTATION'] }, checkedInAt: { gte: start, lt: end } }),
@@ -40,14 +40,14 @@ export class DashboardService {
         pendingApprovals: await dashboardRepository.countLabOrders({ status: 'RESULTED', orderedBy: userId }),
       };
     }
-    if (role === 'LAB_TECHNICIAN') {
+    if (String(role).toUpperCase() === 'LAB_TECHNICIAN') {
       data = {
         pendingByPriority: await dashboardRepository.groupLabOrdersByPriority({ status: { in: ['PENDING', 'SAMPLE_COLLECTED', 'PROCESSING'] } }),
         resultedToday: await dashboardRepository.countLabResults({ enteredAt: { gte: start, lt: end } }),
         approvedToday: await dashboardRepository.countLabResults({ approvedAt: { gte: start, lt: end } }),
       };
     }
-    if (role === 'PHARMACIST') {
+    if (String(role).toUpperCase() === 'PHARMACIST') {
       const prescriptionsToday = await dashboardRepository.countPrescriptions({
         createdAt: { gte: start, lt: end },
       });

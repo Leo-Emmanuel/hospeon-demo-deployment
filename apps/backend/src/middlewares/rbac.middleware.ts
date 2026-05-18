@@ -8,7 +8,10 @@ export const requireRole = (allowedRoles: Role[]) => {
       return next(new AppError(401, 'Not authenticated'));
     }
 
-    if (!allowedRoles.includes(req.user.role as Role)) {
+    const userRole = String(req.user.role).toUpperCase();
+    const upperAllowed = allowedRoles.map((r) => String(r).toUpperCase());
+
+    if (!upperAllowed.includes(userRole)) {
       return next(new AppError(403, 'You do not have permission to perform this action'));
     }
 
