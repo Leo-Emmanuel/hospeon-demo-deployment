@@ -43,7 +43,7 @@ export function Queue() {
     limit: 50,
     status,
     date: new Date().toISOString().slice(0, 10),
-    doctorId: user?.role === 'DOCTOR' ? user.id : undefined,
+    doctorId: String(user?.role).toUpperCase() === 'DOCTOR' ? user?.id : undefined,
   });
   const updateVisitStatus = useUpdateVisitStatus();
   const createVisit = useCreateVisit();
@@ -161,7 +161,7 @@ export function Queue() {
     <div>
       <PageHeader
         title="Today's queue"
-        description={user?.role === 'DOCTOR' ? 'Your live OPD queue for today.' : 'Live OPD queue across the clinic for today.'}
+        description={String(user?.role).toUpperCase() === 'DOCTOR' ? 'Your live OPD queue for today.' : 'Live OPD queue across the clinic for today.'}
         breadcrumbs={[{ label: 'Overview' }, { label: "Today's queue" }]}
         actions={
           <div className="flex gap-2">
