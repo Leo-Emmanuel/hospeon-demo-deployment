@@ -85,6 +85,10 @@ export interface LabResultSummary {
   referenceRange?: string | null;
   isAbnormal: boolean;
   approvedAt?: string | null;
+  approver?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface LabOrderSummary {

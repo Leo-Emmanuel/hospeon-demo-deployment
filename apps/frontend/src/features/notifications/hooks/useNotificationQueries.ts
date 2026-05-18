@@ -16,7 +16,7 @@ export const useMarkNotificationRead = () => {
   return useMutation({
     mutationFn: (id: string) => notificationService.markRead(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK.notifications.all?.() || ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 };
@@ -27,7 +27,7 @@ export const useMarkAllNotificationsRead = () => {
   return useMutation({
     mutationFn: () => notificationService.markAllRead(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK.notifications.all?.() || ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 };
