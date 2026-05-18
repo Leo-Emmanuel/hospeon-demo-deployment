@@ -10,6 +10,8 @@ import { MonoNumber } from '@/components/ui/MonoNumber';
 import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
 import { usePatient, useUpdatePatient } from '@/features/patients/hooks/usePatientQueries';
 import { PatientDetail, UpdatePatientPayload, VisitSummary } from '@/services/patientService';
+import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useApproveLabResult } from '@/features/laboratory/hooks/useLabQueries';
 
 const formatDateTime = (value?: string | null) =>
   value
@@ -60,6 +62,8 @@ export function PatientProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<UpdatePatientPayload>({});
   const [saveError, setSaveError] = useState('');
+  const user = useAuthStore((state) => state.user);
+  const approveResult = useApproveLabResult();
 
   useEffect(() => {
     if (!patient) return;
@@ -349,11 +353,26 @@ export function PatientProfile() {
                         </p>
                         <p className="text-xs text-ink-tertiary mt-1">Ordered {formatDateTime(order.orderedAt)}</p>
                         {order.result ? (
-                          <p className="text-sm mt-2">
-                            Result: <MonoNumber size="sm">{order.result.resultValue}</MonoNumber>{' '}
-                            {order.result.resultUnit || ''}
-                            {order.result.referenceRange ? ` · Ref ${order.result.referenceRange}` : ''}
-                          </p>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm">
+                              Result: <MonoNumber size="sm">{order.result.resultValue}</MonoNumber>{' '}
+                              {order.result.resultUnit || ''}
+                              {order.result.referenceRange ? ` · Ref ${order.result.referenceRange}` : ''}
+                            </p>
+                            {order.result.approvedAt ? (
+                              <div className="flex items-center gap-2 mt-2">
+                                <StatusBadge tone="success">Approved</StatusBadge>
+                                <span className="text-xs text-ink-secondary">by {order.result.approver?.name || 'Doctor'} on {formatDateTime(order.result.approvedAt)}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 mt-2">
+                                <StatusBadge tone="warning">Awaiting approval</StatusBadge>
+                                {user?.role === 'DOCTOR' && (
+                                  <Button size="sm" variant="primary" disabled={approveResult.isPending} onClick={() => approveResult.mutateAsync(order.id)}>Approve</Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <p className="text-sm mt-2 text-ink-secondary">Result not entered yet.</p>
                         )}

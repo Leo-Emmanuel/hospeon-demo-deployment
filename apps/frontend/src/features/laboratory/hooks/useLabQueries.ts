@@ -1,19 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { labService, LabOrderListParams, UpsertLabResultPayload } from '@/services/labService';
+import { useToast } from '@/components/ui/Toast';
+
+import { QK } from '@/lib/queryKeys';
 
 export const labKeys = {
-  all: ['lab'] as const,
-  orders: () => [...labKeys.all, 'orders'] as const,
-  orderList: (params: LabOrderListParams) => [...labKeys.orders(), params] as const,
-  orderDetail: (id: string) => [...labKeys.all, 'order', id] as const,
-  resultDetail: (orderId: string) => [...labKeys.all, 'result', orderId] as const,
-  catalog: () => [...labKeys.all, 'catalog'] as const,
+  catalog: () => ['lab', 'catalog'] as const,
   catalogList: (params: { showAll?: boolean }) => [...labKeys.catalog(), params] as const,
 };
 
 export const useLabOrders = (params: LabOrderListParams) =>
   useQuery({
-    queryKey: labKeys.orderList(params),
+    queryKey: QK.labOrders.list(params),
     queryFn: () => labService.listOrders(params),
     refetchInterval: 30000,
     placeholderData: (previousData) => previousData,
@@ -21,14 +19,14 @@ export const useLabOrders = (params: LabOrderListParams) =>
 
 export const useLabOrder = (id: string) =>
   useQuery({
-    queryKey: labKeys.orderDetail(id),
+    queryKey: QK.labOrders.detail(id),
     queryFn: () => labService.getOrder(id),
     enabled: Boolean(id),
   });
 
 export const useLabResult = (orderId: string) =>
   useQuery({
-    queryKey: labKeys.resultDetail(orderId),
+    queryKey: QK.labResults.detail(orderId),
     queryFn: () => labService.getResult(orderId),
     enabled: Boolean(orderId),
     retry: false,
@@ -48,8 +46,11 @@ export const useUpdateLabOrderStatus = () => {
       notes?: string;
     }) => labService.updateOrderStatus(id, status, notes),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: labKeys.orders() });
-      queryClient.setQueryData(labKeys.orderDetail(response.data.id), response);
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.all() });
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.detail(response.data.id) });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.labQueue() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.summary() });
+      queryClient.setQueryData(QK.labOrders.detail(response.data.id), response);
     },
   });
 };
@@ -61,8 +62,12 @@ export const useEnterLabResult = () => {
     mutationFn: ({ orderId, payload }: { orderId: string; payload: UpsertLabResultPayload }) =>
       labService.enterResult(orderId, payload),
     onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({ queryKey: labKeys.orders() });
-      queryClient.setQueryData(labKeys.resultDetail(variables.orderId), response);
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.all() });
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.detail(variables.orderId) });
+      queryClient.invalidateQueries({ queryKey: QK.labResults.detail(variables.orderId) });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.labQueue() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.summary() });
+      queryClient.setQueryData(QK.labResults.detail(variables.orderId), response);
     },
   });
 };
@@ -74,20 +79,39 @@ export const useUpdateLabResult = () => {
     mutationFn: ({ orderId, payload }: { orderId: string; payload: UpsertLabResultPayload }) =>
       labService.updateResult(orderId, payload),
     onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({ queryKey: labKeys.orders() });
-      queryClient.setQueryData(labKeys.resultDetail(variables.orderId), response);
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.all() });
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.detail(variables.orderId) });
+      queryClient.invalidateQueries({ queryKey: QK.labResults.detail(variables.orderId) });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.labQueue() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.summary() });
+      queryClient.setQueryData(QK.labResults.detail(variables.orderId), response);
     },
   });
 };
 
 export const useApproveLabResult = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: (orderId: string) => labService.approveResult(orderId),
     onSuccess: (response, orderId) => {
-      queryClient.invalidateQueries({ queryKey: labKeys.orders() });
-      queryClient.setQueryData(labKeys.resultDetail(orderId), response);
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.all() });
+      queryClient.invalidateQueries({ queryKey: QK.labOrders.detail(orderId) });
+      queryClient.invalidateQueries({ queryKey: QK.labResults.all() });
+      queryClient.invalidateQueries({ queryKey: QK.labResults.detail(orderId) });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.labQueue() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.summary() });
+      queryClient.invalidateQueries({ queryKey: QK.notifications.unread() });
+
+      const cachedOrder = queryClient.getQueryData<any>(QK.labOrders.detail(orderId));
+      const patientId = cachedOrder?.data?.patientId || cachedOrder?.patientId;
+      if (patientId) {
+        queryClient.invalidateQueries({ queryKey: QK.patients.detail(patientId) });
+        queryClient.invalidateQueries({ queryKey: QK.patients.labOrders(patientId) });
+      }
+
+      toast.success('Lab result approved');
     },
   });
 };

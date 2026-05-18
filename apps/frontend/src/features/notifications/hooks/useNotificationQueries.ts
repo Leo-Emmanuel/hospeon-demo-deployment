@@ -1,14 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '@/services/notificationService';
 
-export const notificationKeys = {
-  all: ['notifications'] as const,
-  unread: () => [...notificationKeys.all, 'unread'] as const,
-};
+import { QK } from '@/lib/queryKeys';
 
 export const useUnreadNotifications = () =>
   useQuery({
-    queryKey: notificationKeys.unread(),
+    queryKey: QK.notifications.unread(),
     queryFn: () => notificationService.getUnread(),
     refetchInterval: 60000,
   });
@@ -19,7 +16,7 @@ export const useMarkNotificationRead = () => {
   return useMutation({
     mutationFn: (id: string) => notificationService.markRead(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      queryClient.invalidateQueries({ queryKey: QK.notifications.all?.() || ['notifications'] });
     },
   });
 };
@@ -30,7 +27,7 @@ export const useMarkAllNotificationsRead = () => {
   return useMutation({
     mutationFn: () => notificationService.markAllRead(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      queryClient.invalidateQueries({ queryKey: QK.notifications.all?.() || ['notifications'] });
     },
   });
 };

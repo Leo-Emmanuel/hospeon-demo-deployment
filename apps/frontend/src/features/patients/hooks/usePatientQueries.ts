@@ -6,24 +6,18 @@ import {
   UpdatePatientPayload,
 } from '@/services/patientService';
 
-export const patientKeys = {
-  all: ['patients'] as const,
-  lists: () => [...patientKeys.all, 'list'] as const,
-  list: (params: PatientListParams) => [...patientKeys.lists(), params] as const,
-  details: () => [...patientKeys.all, 'detail'] as const,
-  detail: (id: string) => [...patientKeys.details(), id] as const,
-};
+import { QK } from '@/lib/queryKeys';
 
 export const usePatients = (params: PatientListParams) =>
   useQuery({
-    queryKey: patientKeys.list(params),
+    queryKey: QK.patients.list(params),
     queryFn: () => patientService.list(params),
     placeholderData: (previousData) => previousData,
   });
 
 export const usePatient = (id: string) =>
   useQuery({
-    queryKey: patientKeys.detail(id),
+    queryKey: QK.patients.detail(id),
     queryFn: () => patientService.getById(id),
     enabled: Boolean(id),
   });
@@ -34,8 +28,8 @@ export const useCreatePatient = () => {
   return useMutation({
     mutationFn: (payload: CreatePatientPayload) => patientService.create(payload),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: patientKeys.lists() });
-      queryClient.setQueryData(patientKeys.detail(response.data.id), response);
+      queryClient.invalidateQueries({ queryKey: QK.patients.all() });
+      queryClient.setQueryData(QK.patients.detail(response.data.id), response);
     },
   });
 };
@@ -46,8 +40,8 @@ export const useUpdatePatient = (id: string) => {
   return useMutation({
     mutationFn: (payload: UpdatePatientPayload) => patientService.update(id, payload),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: patientKeys.lists() });
-      queryClient.setQueryData(patientKeys.detail(id), response);
+      queryClient.invalidateQueries({ queryKey: QK.patients.all() });
+      queryClient.setQueryData(QK.patients.detail(id), response);
     },
   });
 };

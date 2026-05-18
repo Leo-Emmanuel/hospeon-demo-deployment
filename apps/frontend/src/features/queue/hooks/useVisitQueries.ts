@@ -1,17 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { visitService, VisitListParams, VisitStatus } from '@/services/visitService';
 
-export const visitKeys = {
-  all: ['visits'] as const,
-  lists: () => [...visitKeys.all, 'list'] as const,
-  list: (params: VisitListParams) => [...visitKeys.lists(), params] as const,
-  details: () => [...visitKeys.all, 'detail'] as const,
-  detail: (id: string) => [...visitKeys.details(), id] as const,
-};
+import { QK } from '@/lib/queryKeys';
 
 export const useVisits = (params: VisitListParams) =>
   useQuery({
-    queryKey: visitKeys.list(params),
+    queryKey: QK.visits.list(params),
     queryFn: () => visitService.list(params),
     refetchInterval: 30000,
     placeholderData: (previousData) => previousData,
@@ -19,7 +13,7 @@ export const useVisits = (params: VisitListParams) =>
 
 export const useVisit = (id: string) =>
   useQuery({
-    queryKey: visitKeys.detail(id),
+    queryKey: QK.visits.detail(id),
     queryFn: () => visitService.getById(id),
     enabled: Boolean(id),
   });
@@ -30,8 +24,11 @@ export const useUpdateVisitStatus = () => {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: VisitStatus }) => visitService.updateStatus(id, status),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
-      queryClient.setQueryData(visitKeys.detail(response.data.id), response);
+      queryClient.invalidateQueries({ queryKey: QK.visits.all() });
+      queryClient.invalidateQueries({ queryKey: QK.visits.today() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.opdQueue() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.summary() });
+      queryClient.setQueryData(QK.visits.detail(response.data.id), response);
     },
   });
 };
@@ -41,8 +38,13 @@ export const useCreateVisit = () => {
 
   return useMutation({
     mutationFn: (payload: Parameters<typeof visitService.create>[0]) => visitService.create(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: visitKeys.lists() });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: QK.visits.all() });
+      queryClient.invalidateQueries({ queryKey: QK.visits.today() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.opdQueue() });
+      queryClient.invalidateQueries({ queryKey: QK.dashboard.summary() });
+      queryClient.invalidateQueries({ queryKey: QK.patients.detail(variables.patientId) });
+      queryClient.invalidateQueries({ queryKey: QK.patients.visits(variables.patientId) });
     },
   });
 };
