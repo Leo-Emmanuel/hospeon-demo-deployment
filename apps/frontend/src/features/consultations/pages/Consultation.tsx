@@ -19,7 +19,8 @@ import { EmptyState, LoadingSkeleton } from '@/components/ui/EmptyState';
 import { MonoNumber } from '@/components/ui/MonoNumber';
 import { AutoStatusBadge, StatusBadge } from '@/components/ui/StatusBadge';
 import { Tabs } from '@/components/ui/Tabs';
-import { useVisit, useUpdateVisitStatus, visitKeys } from '@/features/queue/hooks/useVisitQueries';
+import { useVisit, useUpdateVisitStatus } from '@/features/queue/hooks/useVisitQueries';
+import { QK } from '@/lib/queryKeys';
 import {
   useCompleteVisit,
   useConsultation,
@@ -191,7 +192,7 @@ export function Consultation() {
       clinicalNotes,
       followUpDate: followUpDate || undefined,
     });
-    queryClient.invalidateQueries({ queryKey: visitKeys.detail(visit.id) });
+    queryClient.invalidateQueries({ queryKey: QK.visits.detail(visit.id) });
     return response.data.id;
   };
 
