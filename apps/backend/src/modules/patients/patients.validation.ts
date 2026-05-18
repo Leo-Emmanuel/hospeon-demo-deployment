@@ -17,6 +17,7 @@ export const createPatientSchema = z.object({
   bloodGroup: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
+  userId: z.string().uuid().optional(),
   address: z.record(z.any()).optional(),
   emergencyContact: z.record(z.any()).optional(),
   insuranceInfo: z.record(z.any()).optional(),

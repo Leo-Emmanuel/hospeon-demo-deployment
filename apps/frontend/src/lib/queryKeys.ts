@@ -44,4 +44,10 @@ export const QK = {
   users: {
     doctors: () => ['users', 'doctors'] as const,
   },
+  appointments: {
+    all: () => ['appointments'] as const,
+    list: (filters?: object) => ['appointments', 'list', filters] as const,
+    detail: (id: string) => ['appointments', id] as const,
+    slots: (doctorId?: string, date?: string) => ['appointments', 'slots', doctorId, date] as const,
+  },
 } as const;

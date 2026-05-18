@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, registerSchema, LoginDto, RegisterDto, Role } from '@hospeon/shared';
+import { loginSchema, registerSchema, LoginDto, RegisterDto } from '@hospeon/shared';
 import { useLogin, useRegister } from '@/features/auth/hooks/useAuthQueries';
 import {
   ArrowRightIcon,
@@ -22,18 +22,7 @@ import { Button, IconButton } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
 type AuthMode = 'login' | 'register';
-type AuthFormValues = LoginDto & Partial<Pick<RegisterDto, 'name' | 'role'>>;
-
-const roleOptions = [
-  Role.ADMIN,
-  Role.DOCTOR,
-  Role.RECEPTIONIST,
-  Role.NURSE,
-  Role.PHARMACIST,
-  Role.LAB_TECHNICIAN,
-  Role.ACCOUNTANT,
-  Role.STAFF,
-];
+type AuthFormValues = LoginDto & Partial<Pick<RegisterDto, 'name'>>;
 
 const productHighlights = [
   {
@@ -69,9 +58,6 @@ export default function AuthPage() {
     formState: { errors },
   } = useForm<AuthFormValues>({
     resolver: zodResolver(isRegisterMode ? registerSchema : loginSchema),
-    defaultValues: {
-      role: Role.RECEPTIONIST,
-    },
   });
 
   const switchMode = (nextMode: AuthMode) => {
@@ -80,7 +66,6 @@ export default function AuthPage() {
       email: '',
       password: '',
       name: '',
-      role: Role.RECEPTIONIST,
     });
   };
 
@@ -127,23 +112,6 @@ export default function AuthPage() {
                   {...register('name')}
                   error={errors.name?.message}
                 />
-
-                <div className="w-full">
-                  <label htmlFor="role" className="block text-xs font-medium text-ink-primary dark:text-ink-primary-dark mb-1.5">
-                    Role
-                  </label>
-                  <select
-                    id="role"
-                    className="w-full h-9 rounded-lg bg-surface dark:bg-surface-dark border border-line dark:border-line-dark px-3 text-sm text-ink-primary dark:text-ink-primary-dark focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
-                    {...register('role')}
-                  >
-                    {roleOptions.map((role) => (
-                      <option key={role} value={role}>
-                        {role.replace('_', ' ')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </>
             )}
 

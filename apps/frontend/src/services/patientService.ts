@@ -141,6 +141,7 @@ export interface PatientListParams {
   visitFrom?: string;
   visitTo?: string;
   followUpDate?: string;
+  userId?: string;
 }
 
 export interface CreatePatientPayload {
@@ -151,6 +152,7 @@ export interface CreatePatientPayload {
   bloodGroup?: string;
   phone?: string;
   email?: string;
+  userId?: string;
   address?: PatientAddress;
   emergencyContact?: EmergencyContact;
   insuranceInfo?: InsuranceInfo;

@@ -5,6 +5,7 @@ import { getPagination, getPaginationMeta } from '../../utils/pagination';
 import { writeAuditLog } from '../../utils/auditLog';
 import { usersRepository } from './users.repository';
 import { hashPassword } from '../../utils/password.util';
+import { UserCategory } from '@hospeon/shared';
 
 export class UsersService {
   private excludePassword<T extends { passwordHash: string }>(user: T): Omit<T, 'passwordHash'> {
@@ -51,8 +52,12 @@ export class UsersService {
       const user = await usersRepository.create({
         name: data.name,
         email: data.email,
+        phone: data.phone,
         passwordHash,
         role: data.role,
+        userCategory: UserCategory.INTERNAL_STAFF,
+        userType: data.userType,
+        staffId: data.staffId,
         departmentId: data.departmentId,
       }, tx);
 
@@ -82,7 +87,10 @@ export class UsersService {
       const updateData: any = {
         name: data.name,
         email: data.email,
+        phone: data.phone,
         role: data.role,
+        userType: data.userType,
+        staffId: data.staffId,
         departmentId: data.departmentId,
       };
 

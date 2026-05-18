@@ -1,16 +1,17 @@
 import { authRepository } from './auth.repository';
-import { RegisterDto, LoginDto, AuthResponseDto, Role } from '@hospeon/shared';
+import { RegisterDto, LoginDto, AuthResponseDto, Role, UserCategory } from '@hospeon/shared';
 import { AppError } from '../../utils/app-error';
 import { hashPassword, comparePassword } from '../../utils/password.util';
 import { generateRefreshToken, generateToken, verifyRefreshToken } from '../../utils/jwt.util';
 
 export class AuthService {
-  private toAuthUser(user: { id: string; name: string; email: string; role: string }) {
+  private toAuthUser(user: { id: string; name: string; email: string; role: string; userCategory: string }) {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role as Role,
+      userCategory: user.userCategory as UserCategory,
     };
   }
 
@@ -24,12 +25,14 @@ export class AuthService {
     const user = await authRepository.createUser({
       name: data.name,
       email: data.email,
-      role: data.role,
+      phone: data.phone,
+      role: Role.PATIENT,
+      userCategory: UserCategory.PATIENT,
       passwordHash: hashedPassword,
     });
 
-    const accessToken = generateToken({ userId: user.id, role: user.role });
-    const refreshToken = generateRefreshToken({ userId: user.id, role: user.role });
+    const accessToken = generateToken({ userId: user.id, role: user.role, userCategory: user.userCategory });
+    const refreshToken = generateRefreshToken({ userId: user.id, role: user.role, userCategory: user.userCategory });
 
     return {
       user: this.toAuthUser(user),
@@ -53,8 +56,8 @@ export class AuthService {
       throw new AppError(403, 'Account has been deactivated');
     }
 
-    const accessToken = generateToken({ userId: user.id, role: user.role });
-    const refreshToken = generateRefreshToken({ userId: user.id, role: user.role });
+    const accessToken = generateToken({ userId: user.id, role: user.role, userCategory: user.userCategory });
+    const refreshToken = generateRefreshToken({ userId: user.id, role: user.role, userCategory: user.userCategory });
 
     return {
       user: this.toAuthUser(user),
@@ -74,6 +77,7 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+      userCategory: user.userCategory,
     };
   }
 
@@ -95,8 +99,8 @@ export class AuthService {
       throw new AppError(403, 'Account has been deactivated');
     }
 
-    const nextAccessToken = generateToken({ userId: user.id, role: user.role });
-    const nextRefreshToken = generateRefreshToken({ userId: user.id, role: user.role });
+    const nextAccessToken = generateToken({ userId: user.id, role: user.role, userCategory: user.userCategory });
+    const nextRefreshToken = generateRefreshToken({ userId: user.id, role: user.role, userCategory: user.userCategory });
 
     return {
       user: this.toAuthUser(user),

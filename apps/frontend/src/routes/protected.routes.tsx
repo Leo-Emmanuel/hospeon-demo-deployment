@@ -21,6 +21,7 @@ import { NewAdmission } from '@/features/admissions/pages/NewAdmission';
 import { NursingStation } from '@/features/admissions/pages/NursingStation';
 import { AppointmentCalendar } from '@/features/appointments/pages/AppointmentCalendar';
 import { NewAppointment } from '@/features/appointments/pages/NewAppointment';
+import { PatientAppointments } from '@/features/appointments/pages/PatientAppointments';
 import { AuditLog } from '@/features/audit/pages/AuditLog';
 import { Invoices } from '@/features/billing/pages/BillingPage';
 import { CreateInvoice } from '@/features/billing/pages/CreateInvoice';
@@ -40,6 +41,7 @@ import { AIPatientSummary } from '@/features/patients/pages/AIPatientSummary';
 import { PatientNew } from '@/features/patients/pages/PatientNew';
 import { Patients as PatientsPage } from '@/features/patients/pages/PatientsPage';
 import { PatientProfile } from '@/features/patients/pages/PatientProfile';
+import { PatientProfileLoader } from '@/features/patients/pages/PatientProfileLoader';
 import { ExpiryAlerts } from '@/features/pharmacy/pages/ExpiryAlerts';
 import { Medicines } from '@/features/pharmacy/pages/PharmacyPage';
 import { PharmacySale } from '@/features/pharmacy/pages/PharmacySale';
@@ -101,6 +103,8 @@ export const protectedRoutes: RouteObject[] = [
           },
           { path: 'appointments', element: <AppointmentCalendar /> },
           { path: 'appointments/new', element: <NewAppointment /> },
+          { path: 'my/appointments', element: <ProtectedRoute allowedRoles={[Role.PATIENT]} />, children: [{ index: true, element: <PatientAppointments /> }] },
+          { path: 'my/profile', element: <ProtectedRoute allowedRoles={[Role.PATIENT]} />, children: [{ index: true, element: <PatientProfileLoader /> }] },
           { path: 'visits/today', element: <Queue /> },
           { path: 'visits/:id/consult', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <Consultation /> }] },
           { path: 'consultations', element: <ProtectedRoute allowedRoles={clinicalRoles} />, children: [{ index: true, element: <Consultation /> }] },

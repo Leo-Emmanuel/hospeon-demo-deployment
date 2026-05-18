@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboardIcon,
+  UserIcon,
   UsersIcon,
   CalendarIcon,
   StethoscopeIcon,
@@ -51,6 +52,21 @@ const nav: {
   title: string;
   items: NavItem[];
 }[] = [
+{
+  title: 'My care',
+  items: [
+  {
+    label: 'My appointments',
+    to: '/my/appointments',
+    icon: <CalendarCheckIcon />
+  },
+  {
+    label: 'My profile',
+    to: '/my/profile',
+    icon: <UserIcon />
+  }]
+
+},
 {
   title: 'Overview',
   items: [
@@ -375,7 +391,8 @@ const roleSections: Record<string, string[]> = {
   PHARMACIST: ['Overview', 'Pharmacy', 'Billing', 'Reports'],
   LAB_TECHNICIAN: ['Overview', 'Diagnostics', 'Reports'],
   ACCOUNTANT: ['Overview', 'Billing', 'Reports'],
-  STAFF: ['Overview', 'Patients']
+  STAFF: ['Overview', 'Patients'],
+  PATIENT: ['My care']
 };
 
 interface SidebarProps {

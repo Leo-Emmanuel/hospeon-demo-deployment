@@ -4,6 +4,7 @@ import { env } from '../config/env';
 interface TokenPayload {
   userId: string;
   role: string;
+  userCategory?: string;
 }
 
 export const generateToken = (payload: TokenPayload, expiresIn = env.JWT_EXPIRES_IN): string => {

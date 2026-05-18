@@ -25,6 +25,7 @@ export class PatientsService {
     };
     const where: Prisma.PatientWhereInput = {
       deletedAt: null,
+      ...(query.userId && { userId: query.userId }),
       ...(query.gender && { gender: query.gender }),
       ...(query.bloodGroup && { bloodGroup: query.bloodGroup }),
       ...((visitFrom || visitTo) && {
@@ -92,6 +93,11 @@ export class PatientsService {
 
   async create(data: any, actorId?: string, ipAddress?: string) {
     return prisma.$transaction(async (tx) => {
+      if (data.userId) {
+        const user = await tx.user.findFirst({ where: { id: data.userId, deletedAt: null } });
+        if (!user) throw new AppError(422, 'Linked user not found');
+        if (user.userCategory !== 'PATIENT') throw new AppError(422, 'Linked user must be a patient');
+      }
       const patient = await patientsRepository.create({
         ...data,
         dob: new Date(data.dob),
@@ -113,6 +119,11 @@ export class PatientsService {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.patient.findFirst({ where: { id, deletedAt: null } });
       if (!existing) throw new AppError(404, 'Patient not found');
+      if (data.userId) {
+        const user = await tx.user.findFirst({ where: { id: data.userId, deletedAt: null } });
+        if (!user) throw new AppError(422, 'Linked user not found');
+        if (user.userCategory !== 'PATIENT') throw new AppError(422, 'Linked user must be a patient');
+      }
       const patient = await patientsRepository.update(id, data, tx);
       await writeAuditLog(tx, { actorId, action: 'UPDATE', entityType: 'patients', entityId: id, oldValues: existing, newValues: patient, ipAddress });
       return patient;
