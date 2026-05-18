@@ -112,7 +112,7 @@ const nav: {
   },
   {
     label: 'Patient Timeline',
-    to: '/patients/P-100482/timeline',
+    to: '/patients',
     icon: <ActivityIcon />
   }]
 
